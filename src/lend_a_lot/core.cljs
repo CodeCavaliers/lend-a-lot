@@ -1,16 +1,29 @@
 (ns lend-a-lot.core
-  (:require ))
+  (:require [reagent.core :as r]
+            [lend-a-lot.navgation]
+            [lend-a-lot.pages :as pages]
+            [lend-a-lot.theme :refer [theme]]
+            [cljs-react-material-ui.reagent :as ui]
+            [re-frame.core :as re]))
+
 
 (enable-console-print!)
 
-(println "This text is printed from src/lend-a-lot/core.cljs. Go ahead and edit it and see reloading in action.")
+(defn get-page [{page :page param :param}]
+  (println page param)
+  (case page
+    :home [pages/home]
+    :details [pages/details param]
+    :new [pages/details param]
+    [pages/home]))
 
-;; define your app data so that it doesn't get over-written on reload
+(defn app []
+  [ui/mui-theme-provider
+    {:mui-theme theme}
+    (let [page (re/subscribe [:pages])]
+      (get-page @page))])
 
-(defonce app-state (atom {:text "Hello world!"}))
+(r/render-component [app]
+  (.getElementById js/document "app"))
 
-(defn on-js-reload []
-  ;; optionally touch your app-state to force rerendering depending on
-  ;; your application
-  ;; (swap! app-state update-in [:__figwheel_counter] inc)
-)
+(defn on-js-reload [])

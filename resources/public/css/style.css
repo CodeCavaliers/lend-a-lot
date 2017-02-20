@@ -1,2 +1,15 @@
 /* some style */
 
+body {
+  padding : 0;
+  margin : 0;
+}
+
+
+.button-spin-appear {
+  -webkit-transform: rotate(-90deg);
+}
+
+.button-spin-appear.button-spin-appear-active {
+  transition: all .25s linear;
+}
