@@ -6,10 +6,18 @@ body {
 }
 
 
-.button-spin-appear {
+.button-spin-left-appear {
+  -webkit-transform: rotate(90deg);
+}
+
+.button-spin-left-appear.button-spin-left-appear-active {
+  transition: all .25s linear;
+}
+
+.button-spin-right-appear {
   -webkit-transform: rotate(-90deg);
 }
 
-.button-spin-appear.button-spin-appear-active {
+.button-spin-right-appear.button-spin-right-appear-active {
   transition: all .25s linear;
 }

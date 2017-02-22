@@ -1,16 +1,14 @@
 (ns lend-a-lot.core
   (:require [reagent.core :as r]
-            [lend-a-lot.navgation]
-            [lend-a-lot.pages :as pages]
-            [lend-a-lot.theme :refer [theme]]
             [cljs-react-material-ui.reagent :as ui]
-            [re-frame.core :as re]))
-
+            [re-frame.core :as re]
+            [lend-a-lot.navigation :as nav]
+            [lend-a-lot.pages :as pages]
+            [lend-a-lot.theme :refer [theme]]))
 
 (enable-console-print!)
 
 (defn get-page [{page :page param :param}]
-  (println page param)
   (case page
     :home [pages/home]
     :details [pages/details param]

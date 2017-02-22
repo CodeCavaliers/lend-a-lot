@@ -1,4 +1,4 @@
-(ns lend-a-lot.navgation
+(ns lend-a-lot.navigation
   (:require [secretary.core :as secretary :refer-macros [defroute]]
             [goog.events :as events]
             [goog.history.EventType :as EventType]
@@ -26,16 +26,17 @@
     (doto h (.setEnabled true))))
 
 ;========= App Handlers =========
-(defn nav-to-handler [{:keys [db]} event]
-  (let [page (nth event 1)
-        extra (when (== 3 (count event)) (nth event 2))]
-    {:db (assoc db :page [page extra])}))
 
-(re/reg-event-fx :nav-to nav-to-handler)
+; handler
+(re/reg-event-fx :nav-to
+  (fn [{:keys [db]} event]
+    (let [page (nth event 1)
+          extra (when (== 3 (count event)) (nth event 2))]
+      {:db (assoc db :page [page extra])})))
 
-(defn page-query [db _]
-  (let [[page details] (:page db)]
-    {:page page
-     :param details}))
-
-(re/reg-sub :pages page-query)
+; pages query
+(re/reg-sub :pages
+  (fn [db _]
+    (let [[page details] (:page db)]
+      {:page page
+       :param details})))
