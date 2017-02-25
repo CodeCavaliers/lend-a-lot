@@ -6,7 +6,7 @@
 
   :min-lein-version "2.7.1"
 
-  :dependencies [[org.clojure/clojure "1.8.0"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha14"]
                  [org.clojure/clojurescript "1.9.229"]
                  [org.clojure/core.async "0.2.395"
                   :exclusions [org.clojure/tools.reader]]
@@ -14,7 +14,9 @@
                   :exclusions [org.clojure/tools.reader cljsjs/react cljsjs/react-dom]]
                  [cljs-react-material-ui "0.2.33"]
                  [secretary "1.2.3"]
-                 [re-frame "0.9.2"]]
+                 [re-frame "0.9.2"]
+                 [posh "0.5.5"]
+                 [datascript "0.15.5"]]
 
 
   :plugins [[lein-figwheel "0.5.9"]

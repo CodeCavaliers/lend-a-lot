@@ -1,20 +1,16 @@
 (ns lend-a-lot.pages
   (:require [reagent.core :as r]
+            [posh.reagent :as p]
+            [lend-a-lot.db :as db]
+            [datascript.core :as d]
             [cljs-react-material-ui.reagent :as ui]
             [cljs-react-material-ui.icons :as ic]
-            [lend-a-lot.theme :as theme]
-            [re-frame.core :as re]))
-
-
-(re/reg-sub :users
-  (fn [db _]))
-
-(re/reg-event-fx :new-user
-  (fn [db _]))
+            [lend-a-lot.theme :as theme]))
 
 
 (defn nav-to! [location]
-  (set! js/window.location.href location))
+  (set! js/window.location.href location)
+  nil)
 
 (defn nav-back! []
   (. js/window.history back))
@@ -44,14 +40,31 @@
      :on-click on-click}
     icon])
 
-(defn home []
-  (let [users (re/subscribe [:users])]
+(defn user-item [[user items]]
+  (let [[id name] user
+        items (map #(clojure.string/join " " (reverse (drop 3 %))) items)
+        string (clojure.string/join ", " items)]
+    [:div {:key id}
+      [ui/list-item
+        {:primary-text name
+         :secondary-text string
+         :left-avatar
+            (r/as-element [ui/avatar (first name)])}]
+      [ui/divider]]))
+
+
+(defn home [conn]
+  (let [query-result @(db/all-users conn)
+        users (group-by (juxt first second) query-result)]
     [:div
       [ui/app-bar {:title "LendALot"
                    :iconElementLeft (nav-button "button-spin-left" ic/navigation-menu)}]
       [fab {:on-click #(nav-to! "#/new")}
         [ic/content-add {:color (:alternateTextColor theme/palette)}]]
-      [ui/list]]))
+      [ui/list
+        {:style {:padding "0"}}
+        (map user-item (seq users))]]))
+
 
 
 (defn details [id]
@@ -60,7 +73,7 @@
       [:div
         [ui/app-bar {:onLeftIconButtonTouchTap #(nav-back!)
                      :iconElementLeft (nav-button "button-spin-right" ic/navigation-arrow-back)}]
-        [fab {:on-click #(re/dispatch [:new-user (:user @new-user)])}
+        [fab {:on-click #(println "save")}
           [ic/content-save {:color (:alternateTextColor theme/palette)}]]
         [:div
           {:style {:padding "5px"}}
@@ -77,3 +90,54 @@
           [:div {:style {:height "15px"}}]
           [ui/card
             {:style {:padding "10px"}}]]])))
+
+
+(defn text-field [{:keys [field atom label type value validator]}]
+  (let [type (or type "text")
+        error-text (@atom (keyword (str "error-" (name field))))
+        validator (or validator (constantly ""))
+        value  (or (@atom field) value)]
+    (when value
+      (swap! atom assoc field value))
+    [ui/text-field
+      {:floating-label-text label
+       :full-width true
+       :on-change #(swap! atom assoc field (.-value (.-target %)))
+       :value (or value "")
+       :error-text (validator value)
+       :type type}]))
+
+(defn validator [text cp value]
+  (if (cp value)
+    text
+    ""))
+
+(defn new-item [conn]
+  (let [new-thing (r/atom {})]
+    (fn []
+      [:div
+        [ui/app-bar {:onLeftIconButtonTouchTap #(nav-back!)
+                     :iconElementLeft
+                           (nav-button "button-spin-right" ic/navigation-arrow-back)
+                     :iconElementRight
+                           (r/as-element
+                             [ui/flat-button {:label "Save"
+                                              :on-click
+                                                #(db/save-new-thing
+                                                    conn
+                                                    @new-thing)}])}]
+        [:div {:style {:padding "10px"}}
+          [text-field {:field :name
+                       :atom new-thing
+                       :validator (partial validator "This field is required" nil?)
+                       :label "Name"}]
+          [text-field {:field :item
+                       :atom new-thing
+                       :validator (partial validator "This field is required" nil?)
+                       :label "Item"}]
+          [text-field {:field :quantity
+                       :atom new-thing
+                       :label "Quantity"
+                       :type "number"
+                       :validator (partial validator "This fields should be at least 1" #(<= % 0))
+                       :value "1"}]]])))
