@@ -1,19 +1,11 @@
 (ns lend-a-lot.pages
   (:require [reagent.core :as r]
-            [posh.reagent :as p]
-            [lend-a-lot.db :as db]
-            [datascript.core :as d]
+            [lend-a-lot.navigation :as nav]
+            [lend-a-lot.store :as store :refer [dispatch!]]
             [cljs-react-material-ui.reagent :as ui]
             [cljs-react-material-ui.icons :as ic]
             [lend-a-lot.theme :as theme]))
 
-
-(defn nav-to! [location]
-  (set! js/window.location.href location)
-  nil)
-
-(defn nav-back! []
-  (. js/window.history back))
 
 (defn button-spin-anim [anim element]
   [ui/css-transition-group
@@ -40,30 +32,33 @@
      :on-click on-click}
     icon])
 
-(defn user-item [[user items]]
-  (let [[id name] user
-        items (map #(clojure.string/join " " (reverse (drop 3 %))) items)
-        string (clojure.string/join ", " items)]
-    [:div {:key id}
+(defn sumarize-items [items]
+  (->> items
+    (sort-by #(- (:quantity %2) (:quantity %1)))
+    (map #(str (:quantity %) " " (:name %)))
+    (clojure.string/join ", ")))
+
+(defn user-item [user]
+  (let [name (str (:name user))
+        items-summary (sumarize-items (:items user))]
+    [:div {:key (:id user)}
       [ui/list-item
         {:primary-text name
-         :secondary-text string
-         :left-avatar
-            (r/as-element [ui/avatar (first name)])}]
+         :secondary-text  items-summary
+         :left-avatar (r/as-element [ui/avatar (first name)])}]
       [ui/divider]]))
 
 
-(defn home [conn]
-  (let [query-result @(db/all-users conn)
-        users (group-by (juxt first second) query-result)]
+(defn home []
+  (let [users (store/home-page @store/state)]
     [:div
       [ui/app-bar {:title "LendALot"
                    :iconElementLeft (nav-button "button-spin-left" ic/navigation-menu)}]
-      [fab {:on-click #(nav-to! "#/new")}
+      [fab {:on-click #(nav/nav-to! "#/new")}
         [ic/content-add {:color (:alternateTextColor theme/palette)}]]
       [ui/list
         {:style {:padding "0"}}
-        (map user-item (seq users))]]))
+        (map user-item users)]]))
 
 
 
@@ -71,7 +66,7 @@
   (let [new-user (r/atom {:user {} :valid false})]
     (fn []
       [:div
-        [ui/app-bar {:onLeftIconButtonTouchTap #(nav-back!)
+        [ui/app-bar {:onLeftIconButtonTouchTap #(nav/nav-back!)
                      :iconElementLeft (nav-button "button-spin-right" ic/navigation-arrow-back)}]
         [fab {:on-click #(println "save")}
           [ic/content-save {:color (:alternateTextColor theme/palette)}]]
@@ -112,25 +107,53 @@
     text
     ""))
 
+(defn to-data-source [users]
+  (map (fn [user] {:text (:name user) :key (:id user)}) users))
+
+(def users-datasource
+  {:text :text
+   :value :key})
+
+
+(defn user-update-new-thing [state text data-source]
+  (let [item (first (filter #(clojure.string/starts-with? (aget % "text") text) data-source))]
+    (if (= text (aget item "text"))
+      (swap! state assoc :user-id (aget item "key"))
+      (swap! state assoc :user-id nil))))
+
+(defn item-update-new-thing [state text data-source]
+  (let [item (first (filter #(clojure.string/starts-with? % text) data-source))]
+    (if (= text item)
+      (swap! state assoc :item item)
+      (swap! state assoc :item nil))))
+
 (defn new-item [conn]
   (let [new-thing (r/atom {})]
     (fn []
       [:div
-        [ui/app-bar {:onLeftIconButtonTouchTap #(nav-back!)
+        [ui/app-bar {:onLeftIconButtonTouchTap #(nav/nav-back!)
                      :iconElementLeft
                            (nav-button "button-spin-right" ic/navigation-arrow-back)
                      :iconElementRight
                            (r/as-element
-                             [ui/flat-button {:label "Save"
-                                              :on-click
-                                                #(db/save-new-thing
-                                                    conn
-                                                    @new-thing)}])}]
+                             [ui/flat-button
+                                {:label "Save"
+                                 :on-click
+                                   #(dispatch! [:new-item @new-thing])}])}]
         [:div {:style {:padding "10px"}}
-          [text-field {:field :name
-                       :atom new-thing
-                       :validator (partial validator "This field is required" nil?)
-                       :label "Name"}]
+          [ui/auto-complete
+            {:dataSource (to-data-source (store/all-users @store/state))
+             :dataSourceConfig users-datasource
+             :full-width true
+             :floatingLabelText "Name"
+             :onUpdateInput #(user-update-new-thing new-thing %1 %2)}]
+          [ui/auto-complete
+            {:dataSource (->> (store/all-items @store/state)
+                            (map :name)
+                            (distinct))
+             :full-width true
+             :floatingLabelText "Item"
+             :onUpdateInput #(item-update-new-thing new-thing %1 %2)}]
           [text-field {:field :item
                        :atom new-thing
                        :validator (partial validator "This field is required" nil?)
@@ -141,3 +164,11 @@
                        :type "number"
                        :validator (partial validator "This fields should be at least 1" #(<= % 0))
                        :value "1"}]]])))
+
+(defn get-page [page-name]
+  (let [state store/state]
+    (case page-name
+      :home [home]
+      :new  [new-item]
+      :details [details]
+      [home])))

@@ -13,10 +13,7 @@
                  [reagent "0.6.0"
                   :exclusions [org.clojure/tools.reader cljsjs/react cljsjs/react-dom]]
                  [cljs-react-material-ui "0.2.33"]
-                 [secretary "1.2.3"]
-                 [re-frame "0.9.2"]
-                 [posh "0.5.5"]
-                 [datascript "0.15.5"]]
+                 [secretary "1.2.3"]]
 
 
   :plugins [[lein-figwheel "0.5.9"]
