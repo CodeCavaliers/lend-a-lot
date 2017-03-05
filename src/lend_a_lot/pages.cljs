@@ -52,7 +52,7 @@
 (defn home []
   (let [users (store/home-page @store/state)]
     [:div
-      [ui/app-bar {:title "LendALot"
+      [ui/app-bar {:title "LendALot asd"
                    :iconElementLeft (nav-button "button-spin-left" ic/navigation-menu)}]
       [fab {:on-click #(nav/nav-to! "#/new")}
         [ic/content-add {:color (:alternateTextColor theme/palette)}]]

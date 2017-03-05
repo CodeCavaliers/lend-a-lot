@@ -21,7 +21,7 @@
 
   :source-paths ["src"]
 
-  :clean-targets ^{:protect false} ["resources/public/js/compiled" "target"]
+  :clean-targets ^{:protect false} ["resources/www/js/compiled" "target"]
 
   :cljsbuild {:builds
               [{:id "dev"
@@ -39,8 +39,8 @@
 
                 :compiler {:main lend-a-lot.core
                            :asset-path "js/compiled/out"
-                           :output-to "resources/public/js/compiled/lend_a_lot.js"
-                           :output-dir "resources/public/js/compiled/out"
+                           :output-to "resources/www/js/compiled/lend_a_lot.js"
+                           :output-dir "resources/www/js/compiled/out"
                            :source-map-timestamp true
                            ;; To console.log CLJS data-structures make sure you enable devtools in Chrome
                            ;; https://github.com/binaryage/cljs-devtools
@@ -50,16 +50,16 @@
                ;; lein cljsbuild once min
                {:id "min"
                 :source-paths ["src"]
-                :compiler {:output-to "resources/public/js/compiled/lend_a_lot.js"
+                :compiler {:output-to "resources/www/js/compiled/lend_a_lot.js"
                            :main lend-a-lot.core
                            :optimizations :advanced
                            :pretty-print false}}]}
 
-  :figwheel {;; :http-server-root "public" ;; default and assumes "resources"
+  :figwheel {:http-server-root "www" 
              ;; :server-port 3449 ;; default
              ;; :server-ip "127.0.0.1"
 
-             :css-dirs ["resources/public/css"]} ;; watch and update CSS
+             :css-dirs ["resources/www/css"]} ;; watch and update CSS
 
              ;; Start an nREPL server into the running figwheel process
              ;; :nrepl-port 7888
