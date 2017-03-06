@@ -30,12 +30,13 @@
                 ;; the presence of a :figwheel configuration here
                 ;; will cause figwheel to inject the figwheel client
                 ;; into your build
-                :figwheel {:on-jsload "lend-a-lot.core/on-js-reload"
+                :figwheel {:websocket-host "192.168.0.101"
+                           :autoload false}
                            ;; :open-urls will pop open your application
                            ;; in the default browser once Figwheel has
                            ;; started and complied your application.
                            ;; Comment this out once it no longer serves you.
-                           :open-urls ["http://localhost:3449/index.html"]}
+                           ;;:open-urls ["http://localhost:3449/index.html"]}
 
                 :compiler {:main lend-a-lot.core
                            :asset-path "js/compiled/out"
@@ -55,7 +56,7 @@
                            :optimizations :advanced
                            :pretty-print false}}]}
 
-  :figwheel {:http-server-root "www" 
+  :figwheel {:http-server-root "www"
              ;; :server-port 3449 ;; default
              ;; :server-ip "127.0.0.1"
 

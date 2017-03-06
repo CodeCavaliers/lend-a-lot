@@ -3,7 +3,8 @@
 
 
 (defonce state
-  (r/atom {:pages {:current-page :home}
+  (r/atom {:counter 0
+           :pages {:current-page :home}
            :data { :users ["1" "2"]
                    :items ["3" "4"]
                    :entities {"1" {:name "Paul" :items ["3" "5"]}
@@ -26,13 +27,23 @@
   (fn [state action]
     (update-in state path reducer action)))
 
+(defn clear-params [pages page]
+  (if (not= :new page)
+    (-> pages
+      (dissoc :picked-contact))
+    pages))
+
+
 (def pages-reducer
   (for-path [:pages]
     (fn [state [type page param]]
       (case type
         :pages (-> state
                 (assoc :current-page page)
-                (assoc :param param))
+                (assoc :param param)
+                (clear-params page))
+        :picked-contact (-> state
+                          (assoc :picked-contact page))
         state))))
 
 
@@ -76,8 +87,6 @@
   (let [item-ids (-> state :data :items)
         items (->> item-ids (map (partial entity-by-id state)))]
     items))
-
-
 
 (defn dispatch! [action]
   (swap! state reducer action))

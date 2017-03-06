@@ -4,6 +4,7 @@
             [lend-a-lot.navigation :as nav]
             [lend-a-lot.pages :as pages]
             [lend-a-lot.store :as store]
+            [lend-a-lot.db :as db]
             [lend-a-lot.theme :refer [theme]]))
 
 (enable-console-print!)
@@ -18,6 +19,3 @@
 
 (r/render [app]
   (js/document.getElementById "app"))
-
-
-(defn on-js-reload [])

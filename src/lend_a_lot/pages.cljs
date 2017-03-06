@@ -4,7 +4,9 @@
             [lend-a-lot.store :as store :refer [dispatch!]]
             [cljs-react-material-ui.reagent :as ui]
             [cljs-react-material-ui.icons :as ic]
-            [lend-a-lot.theme :as theme]))
+            [lend-a-lot.theme :as theme]
+            [clojure.core.async :as async])
+  (:require-macros [cljs.core.async.macros :refer [go]]))
 
 
 (defn button-spin-anim [anim element]
@@ -48,13 +50,27 @@
          :left-avatar (r/as-element [ui/avatar (first name)])}]
       [ui/divider]]))
 
+(defn create-contact [js-contact]
+  {:id (.-id js-contact)
+   :display-name (.-displayName js-contact)})
+
+(defn pick-contact []
+  (let [contacts (.. js/window -navigator -contacts)]
+    (.pickContact contacts
+      (fn [c]
+        (let [contact (create-contact c)]
+          (nav/nav-to! "#/new")
+          (dispatch! [:picked-contact contact]))))))
+
+
+
 
 (defn home []
   (let [users (store/home-page @store/state)]
     [:div
-      [ui/app-bar {:title "LendALot asd"
+      [ui/app-bar {:title "LendALot"
                    :iconElementLeft (nav-button "button-spin-left" ic/navigation-menu)}]
-      [fab {:on-click #(nav/nav-to! "#/new")}
+      [fab {:on-click #(pick-contact)}
         [ic/content-add {:color (:alternateTextColor theme/palette)}]]
       [ui/list
         {:style {:padding "0"}}
@@ -124,10 +140,18 @@
 (defn item-update-new-thing [state text data-source]
   (let [item (first (filter #(clojure.string/starts-with? % text) data-source))]
     (if (= text item)
-      (swap! state assoc :item item)
-      (swap! state assoc :item nil))))
+      (do
+        (swap! state assoc :item item)
+        (swap! state dissoc :item-error))
+      (do
+        (swap! state dissoc :item)
+        (swap! state assoc :item-error "Item must be selected")))))
 
-(defn new-item [conn]
+(defn save-new-item! [{:keys [id item quantity]}]
+  (when-not (some nil? [id item quantity])
+    (println id item quantity)))
+
+(defn new-item []
   (let [new-thing (r/atom {})]
     (fn []
       [:div
@@ -139,25 +163,30 @@
                              [ui/flat-button
                                 {:label "Save"
                                  :on-click
-                                   #(dispatch! [:new-item @new-thing])}])}]
+                                   #(save-new-item!
+                                      (assoc @new-thing :id
+                                        (-> @store/state :pages :picked-contact :id)))}])}]
         [:div {:style {:padding "10px"}}
-          [ui/auto-complete
-            {:dataSource (to-data-source (store/all-users @store/state))
-             :dataSourceConfig users-datasource
-             :full-width true
-             :floatingLabelText "Name"
-             :onUpdateInput #(user-update-new-thing new-thing %1 %2)}]
+          [ui/list
+            {:style {:padding "0"
+                     :margin-left "-10px"
+                     :margin-right "-10px"}}
+            (let [name (-> @store/state :pages :picked-contact :display-name)
+                  letter (first name)]
+              [ui/list-item {:primary-text name
+                             :disabled true
+                             :right-icon-button (r/as-element [ui/icon-button
+                                                                {:on-click #(pick-contact)}
+                                                                [ic/editor-mode-edit]])
+                             :left-avatar (r/as-element [ui/avatar letter])}])]
           [ui/auto-complete
             {:dataSource (->> (store/all-items @store/state)
                             (map :name)
                             (distinct))
              :full-width true
              :floatingLabelText "Item"
+             :error-text (:item-error @new-thing)
              :onUpdateInput #(item-update-new-thing new-thing %1 %2)}]
-          [text-field {:field :item
-                       :atom new-thing
-                       :validator (partial validator "This field is required" nil?)
-                       :label "Item"}]
           [text-field {:field :quantity
                        :atom new-thing
                        :label "Quantity"
