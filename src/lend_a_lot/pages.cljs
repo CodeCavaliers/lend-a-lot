@@ -5,7 +5,8 @@
             [cljs-react-material-ui.reagent :as ui]
             [cljs-react-material-ui.icons :as ic]
             [lend-a-lot.theme :as theme]
-            [clojure.core.async :as async])
+            [lend-a-lot.db :as db]
+            [clojure.core.async :as async :refer [<!]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
 
@@ -51,16 +52,18 @@
       [ui/divider]]))
 
 (defn create-contact [js-contact]
-  {:id (.-id js-contact)
-   :display-name (.-displayName js-contact)})
+  {:id (str (aget js-contact "id"))
+   :name (aget js-contact "displayName")})
 
 (defn pick-contact []
-  (let [contacts (.. js/window -navigator -contacts)]
-    (.pickContact contacts
-      (fn [c]
-        (let [contact (create-contact c)]
-          (nav/nav-to! "#/new")
-          (dispatch! [:picked-contact contact]))))))
+  (go
+    (let [contacts (<! db/contacts)
+          pickContactFn (aget contacts "pickContact")]
+      (pickContactFn 
+        (fn [c]
+          (let [contact (create-contact c)]
+            (nav/nav-to! "#/new")
+            (dispatch! [:picked-contact contact])))))))
 
 
 
@@ -72,9 +75,11 @@
                    :iconElementLeft (nav-button "button-spin-left" ic/navigation-menu)}]
       [fab {:on-click #(pick-contact)}
         [ic/content-add {:color (:alternateTextColor theme/palette)}]]
-      [ui/list
-        {:style {:padding "0"}}
-        (map user-item users)]]))
+      (if (:loading @store/state)
+        [ui/linear-progress {:mode "indeterminate"}]
+        [ui/list
+          {:style {:padding "0"}}
+          (map user-item users)])]))
 
 
 
@@ -113,7 +118,7 @@
     [ui/text-field
       {:floating-label-text label
        :full-width true
-       :on-change #(swap! atom assoc field (.-value (.-target %)))
+       :on-change #(swap! atom assoc field (js/parseInt (.-value (.-target %))))
        :value (or value "")
        :error-text (validator value)
        :type type}]))
@@ -140,16 +145,18 @@
 (defn item-update-new-thing [state text data-source]
   (let [item (first (filter #(clojure.string/starts-with? % text) data-source))]
     (if (= text item)
-      (do
-        (swap! state assoc :item item)
-        (swap! state dissoc :item-error))
-      (do
-        (swap! state dissoc :item)
-        (swap! state assoc :item-error "Item must be selected")))))
+      (swap! state assoc :item item)
+      (swap! state assoc :item text))))
 
-(defn save-new-item! [{:keys [id item quantity]}]
-  (when-not (some nil? [id item quantity])
-    (println id item quantity)))
+(defn save-new-item! [c]
+  (let [{:keys [contact item quantity]} c
+        {:keys [id name]} contact]
+    (when-not (some nil? [id item quantity])
+      (go (let [result (<! (db/save-new-item! id item quantity))]
+            (println "Result" result)
+            (store/dispatch! [:new-item (assoc result :userName name)])
+            (nav/nav-back!))))))
+
 
 (defn new-item []
   (let [new-thing (r/atom {})]
@@ -164,14 +171,15 @@
                                 {:label "Save"
                                  :on-click
                                    #(save-new-item!
-                                      (assoc @new-thing :id
-                                        (-> @store/state :pages :picked-contact :id)))}])}]
+                                      (let [contact (-> @store/state :pages :picked-contact)]
+                                        (assoc @new-thing :contact contact)))}])}]
+
         [:div {:style {:padding "10px"}}
           [ui/list
             {:style {:padding "0"
                      :margin-left "-10px"
                      :margin-right "-10px"}}
-            (let [name (-> @store/state :pages :picked-contact :display-name)
+            (let [name (-> @store/state :pages :picked-contact :name)
                   letter (first name)]
               [ui/list-item {:primary-text name
                              :disabled true
@@ -181,6 +189,7 @@
                              :left-avatar (r/as-element [ui/avatar letter])}])]
           [ui/auto-complete
             {:dataSource (->> (store/all-items @store/state)
+                            (sort-by :quantity)
                             (map :name)
                             (distinct))
              :full-width true

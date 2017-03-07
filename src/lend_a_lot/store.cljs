@@ -1,20 +1,67 @@
-(ns lend-a-lot.store
-  (:require [reagent.core :as r]))
+(ns lend-a-lot.store  (:require [reagent.core :as r]))
 
 
-(defonce state
-  (r/atom {:counter 0
-           :pages {:current-page :home}
-           :data { :users ["1" "2"]
-                   :items ["3" "4"]
-                   :entities {"1" {:name "Paul" :items ["3" "5"]}
-                              "2" {:name "Nicu" :items ["4"]}
-                              "3" {:name "Tigari" :quantity 2}
-                              "5" {:name "Cablu Laptop" :quantity 1}
-                              "4" {:name "Tigari" :quantity 3}}}}))
+(def state
+  (r/atom {:pages {:current-page :home}
+           :loading true
+           :data { :users #{}
+                   :items #{}
+                   :user->items {}
+                   :users-index {}
+                   :items-index {}}}))
 
 
-(def pages-state (r/cursor state [:pages]))
+
+; ===== Utils ======
+
+(defn index-by [f xs]
+ (reduce
+   (fn [index x]
+     (assoc index (f x) x))
+   {}
+   xs))
+
+(def xid (map :id))
+
+(defn db->data [contacts items]
+  {:users (into #{} xid contacts)
+   :items (into #{} xid items)
+   :users-index (index-by :id contacts)
+   :items-index (index-by :id items)
+   :user->items (->> items
+                    (group-by :userId)
+                    (reduce-kv (fn [acc k v] (assoc acc k (into #{} xid v))) {}))})
+
+
+; ============ Queries =============
+
+(defn user-by-id [state id]
+  (let [users (-> state :data :users-index)
+        user (users id)]
+    (assoc user :id id)))
+
+(defn item-by-id [state id]
+  (let [items (-> state :data :items-index)
+        item  (items id)]
+    (assoc item :id id)))
+
+(defn user-with-items-by-id [state id]
+  (let [user (user-by-id state id)
+        items-for-user (-> state :data :user->items (get id))]
+    (assoc user :items (map (partial item-by-id state) items-for-user))))
+
+
+(defn all-users [state]
+  (let [users (-> state :data :users)]
+    (map (partial user-with-items-by-id state) users)))
+
+(defn all-items [state]
+  (let [item-ids (-> state :data :items)
+        items (->> item-ids (map (partial item-by-id state)))]
+    items))
+
+(defn home-page [state]
+  (all-users state))
 
 (defn comp-reducers-2 [a b]
   (fn [state action]
@@ -46,47 +93,45 @@
                           (assoc :picked-contact page))
         state))))
 
+(defn global-reducer [state [type & params]]
+  (case type
+    :load-data (assoc state :loading false)
+    state))
 
-(defn add-new-item [data params]
-  (println params)
-  data)
+(defn set-conj [set x]
+  (if (nil? set)
+    #{x}
+    (conj set x)))
+
+(defn add-new-item [data item]
+  (let [{:keys [userId id userName]} item]
+    (-> data
+      (update-in [:users] conj userId)
+      (update-in [:items] conj id)
+      (assoc-in [:users-index userId] {:id userId :name userName})
+      (assoc-in [:items-index id] (dissoc item :userName))
+      (update-in [:user->items userId] set-conj id))))
+
 
 (def data-reducer
   (for-path [:data]
-    (fn [data [type params]]
+    (fn [data [type & params]]
       (case type
-        :new-item (add-new-item data params)
+        :load-data (let [contacts (first params)
+                         items    (second params)]
+                      (db->data contacts items))
+        :new-item (add-new-item data (first params))
         data))))
 
 
 (def reducer
   (comp-reducers pages-reducer
-                 data-reducer))
+                 data-reducer
+                 global-reducer))
 
 
-; ============ Queries =============
 
-(defn entity-by-id [state id]
-  (let [entities (-> state :data :entities)
-        entity (entities id)]
-    (assoc entity :id id)))
 
-(defn user-by-id [state id]
-  (let [user (entity-by-id state id)]
-    (update user :items #(map (partial entity-by-id state) %))))
-
-(defn home-page [state]
-  (let [users (-> state :data :users)]
-    (map (partial user-by-id state) users)))
-
-(defn all-users [state]
-  (let [users (-> state :data :users)]
-    (map (partial entity-by-id state) users)))
-
-(defn all-items [state]
-  (let [item-ids (-> state :data :items)
-        items (->> item-ids (map (partial entity-by-id state)))]
-    items))
 
 (defn dispatch! [action]
   (swap! state reducer action))
