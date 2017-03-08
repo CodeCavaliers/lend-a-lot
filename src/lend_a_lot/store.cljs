@@ -24,13 +24,16 @@
 (def xid (map :id))
 
 (defn db->data [contacts items]
-  {:users (into #{} xid contacts)
-   :items (into #{} xid items)
-   :users-index (index-by :id contacts)
-   :items-index (index-by :id items)
-   :user->items (->> items
-                    (group-by :userId)
-                    (reduce-kv (fn [acc k v] (assoc acc k (into #{} xid v))) {}))})
+  (let [item-ids (into #{} xid items)
+        user-ids (into #{} (map :userId) items)
+        contacts (filter (fn [c] (user-ids (str (:id c)))) contacts)]
+    {:users (into #{} xid contacts)
+     :items item-ids
+     :users-index (index-by :id contacts)
+     :items-index (index-by :id items)
+     :user->items (->> items
+                      (group-by :userId)
+                      (reduce-kv (fn [acc k v] (assoc acc k (into #{} xid v))) {}))}))
 
 
 ; ============ Queries =============
@@ -128,9 +131,6 @@
   (comp-reducers pages-reducer
                  data-reducer
                  global-reducer))
-
-
-
 
 
 (defn dispatch! [action]

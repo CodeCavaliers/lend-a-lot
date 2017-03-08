@@ -10,7 +10,7 @@
     <feature name="SQLitePlugin">
         <param name="android-package" value="io.sqlc.SQLitePlugin" />
     </feature>
-    <name>HelloCordova</name>
+    <name>lend-a-lot</name>
     <description>
         A sample Apache Cordova application that responds to the deviceready event.
     </description>

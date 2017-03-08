@@ -31,7 +31,8 @@
   [ui/floating-action-button
     {:style {:position "absolute"
              :bottom "15px"
-             :right "15px"}
+             :right "15px"
+             :z-index "100"}
      :on-click on-click}
     icon])
 
@@ -59,7 +60,7 @@
   (go
     (let [contacts (<! db/contacts)
           pickContactFn (aget contacts "pickContact")]
-      (pickContactFn 
+      (pickContactFn
         (fn [c]
           (let [contact (create-contact c)]
             (nav/nav-to! "#/new")
@@ -77,9 +78,10 @@
         [ic/content-add {:color (:alternateTextColor theme/palette)}]]
       (if (:loading @store/state)
         [ui/linear-progress {:mode "indeterminate"}]
-        [ui/list
-          {:style {:padding "0"}}
-          (map user-item users)])]))
+        [:div {:style {:overflow "auto"}}
+          [ui/list
+            {:style {:padding "0"}}
+            (map user-item users)]])]))
 
 
 
