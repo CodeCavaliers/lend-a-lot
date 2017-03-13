@@ -36,13 +36,26 @@
      :on-click on-click}
     icon])
 
-(defn sumarize-items [items]
+(defn sumarize-items
+  "Creates a sumarized version for a list of items in format:
+  <quantity> <name>, <quantity> <name>
+
+  Ex:
+    2 Tigari, 1 Cablu Telefon
+
+  Params:
+    items - a list of items (maps of :quantity and :name)
+  Result:
+    a formated string"
+  [items]
   (->> items
     (sort-by #(- (:quantity %2) (:quantity %1)))
     (map #(str (:quantity %) " " (:name %)))
     (clojure.string/join ", ")))
 
-(defn user-item [user]
+(defn user-item
+  "UI representation of a user for the home page list"
+  [user]
   (let [name (str (:name user))
         items-summary (sumarize-items (:items user))]
     [:div {:key (:id user)}
@@ -52,11 +65,17 @@
          :left-avatar (r/as-element [ui/avatar (first name)])}]
       [ui/divider]]))
 
-(defn create-contact [js-contact]
+(defn create-contact
+  "JS->CLJ contact creator function.
+  Take a js object with id and displayName props.
+  Returns a clj map with :id and :name props"
+  [js-contact]
   {:id (str (aget js-contact "id"))
    :name (aget js-contact "displayName")})
 
-(defn pick-contact []
+(defn pick-contact
+  "Starts the contact picker cordova plugin."
+  []
   (go
     (let [contacts (<! db/contacts)
           pickContactFn (aget contacts "pickContact")]
@@ -66,10 +85,9 @@
             (nav/nav-to! "#/new")
             (dispatch! [:picked-contact contact])))))))
 
-
-
-
-(defn home []
+(defn home
+  "The home page."
+  []
   (let [users (store/home-page @store/state)]
     [:div
       [ui/app-bar {:title "LendALot"
@@ -110,7 +128,9 @@
             {:style {:padding "10px"}}]]])))
 
 
-(defn text-field [{:keys [field atom label type value validator]}]
+(defn text-field
+  "A wrapper for ui/text-field that validates and auto updates an atom with value"
+  [{:keys [field atom label type value validator]}]
   (let [type (or type "text")
         error-text (@atom (keyword (str "error-" (name field))))
         validator (or validator (constantly ""))
@@ -125,7 +145,10 @@
        :error-text (validator value)
        :type type}]))
 
-(defn validator [text cp value]
+(defn validator
+  "A simple validation text function.
+  Returns error text if (cp value) returns true."
+  [text cp value]
   (if (cp value)
     text
     ""))
@@ -205,7 +228,9 @@
                        :validator (partial validator "This fields should be at least 1" #(<= % 0))
                        :value "1"}]]])))
 
-(defn get-page [page-name]
+(defn get-page
+  "Gets a page by name" 
+  [page-name]
   (let [state store/state]
     (case page-name
       :home [home]

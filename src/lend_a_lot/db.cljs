@@ -53,7 +53,12 @@
 (defn item-with-name-for-user [user-id item-name]
   (execute-sql! (str "SELECT * FROM LentItems WHERE userId=" user-id " and name='" item-name "';")))
 
-(defn bootstrap-database []
+(defn bootstrap-database
+  "Boostraps sqlite plugin and contacts plugin.
+  Called on 'deviceready' callback.
+
+  Stores instances of the database and contactsPlugin in global promise channels."
+  []
   (let [sqlitePlugin (aget js/window "sqlitePlugin")
         contactsPlugin (aget (aget js/window "navigator") "contacts")
         database (.openDatabase sqlitePlugin #js{:name "lend-a-lot.db" :location "default"})]
@@ -71,7 +76,11 @@
         (async/put! contacts contactsPlugin)))))
 
 
-(defn save-new-item! [user-id item quantity]
+(defn save-new-item!
+  "Stores an item based on user-id.
+  If item is already associated with a user, quanity gets added.
+  If item does not exist for user, a new entry is created for item and user with quantity." 
+  [user-id item quantity]
   (go
     (let [current-item (first (<! (item-with-name-for-user user-id item)))
           quantity (js/parseInt quantity)]
