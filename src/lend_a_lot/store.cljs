@@ -4,6 +4,8 @@
 (def state
   (r/atom {:pages {:current-page :home}
            :loading true
+           :drawer-open false
+           :settings {:group-by-user true}
            :data { :users #{}
                    :items #{}
                    :user->items {}
@@ -78,6 +80,38 @@
   [state]
   (all-users state))
 
+(defn item->user-quantity [state item]
+  (let [user (user-by-id state (:userId item))]
+    {:name (:name item)
+     :user-name (:name user)
+     :id (:id item)
+     :userId (:userId item)
+     :quantity (:quantity item)}))
+
+(defn items-by-name [groups-by-item-name]
+  (let [item-name (first groups-by-item-name)
+        users     (second groups-by-item-name)
+        id        (str (clojure.string/join "-" (map :id users) ) ","
+                       (clojure.string/join "-" (map :userId users)))]
+    {:item-name item-name
+     :id id
+     :users (map #(-> % (dissoc :name)
+                        (dissoc :userId)
+                        (dissoc :id)) users)}))
+
+(defn home-page-by-items
+  [state]
+  (let [items (all-items state)
+        users-by-items (map (partial item->user-quantity state) items)
+        by-item-name (group-by :name users-by-items)
+        data (into [] (map items-by-name) by-item-name)]
+    (sort-by :item-name data)))
+
+(defn details
+  "Query to populate details page"
+  [state]
+  (user-with-items-by-id state (-> state :pages :param)))
+
 (defn comp-reducers-2
   "Compose for two reducers
    Params:
@@ -120,11 +154,21 @@
                           (assoc :picked-contact page))
         state))))
 
+(def settings-reducer
+  "Handlers :settings part of store"
+  (for-path [:settings]
+    (fn [state [type & params]]
+      (case type
+        :settings/group-by-user
+            (assoc state :group-by-user (first params))
+        state))))
+
 (defn global-reducer
   "Global reducer globaly relevant actions."
   [state [type & params]]
   (case type
     :load-data (assoc state :loading false)
+    :drawer (assoc state :drawer-open (first params))
     state))
 
 (defn set-conj
@@ -161,6 +205,7 @@
   Created by composition of multiple path reducers."
   (comp-reducers pages-reducer
                  data-reducer
+                 settings-reducer
                  global-reducer))
 
 

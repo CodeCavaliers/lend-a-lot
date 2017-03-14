@@ -6,6 +6,7 @@
             [cljs-react-material-ui.icons :as ic]
             [lend-a-lot.theme :as theme]
             [lend-a-lot.db :as db]
+            [clojure.string :as str]
             [clojure.core.async :as async :refer [<!]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
@@ -29,7 +30,7 @@
 
 (defn fab [{on-click :on-click} icon]
   [ui/floating-action-button
-    {:style {:position "absolute"
+    {:style {:position "fixed"
              :bottom "15px"
              :right "15px"
              :z-index "100"}
@@ -44,23 +45,38 @@
     2 Tigari, 1 Cablu Telefon
 
   Params:
+    prop - the prop used for 'name'
     items - a list of items (maps of :quantity and :name)
   Result:
     a formated string"
-  [items]
+  [prop items]
   (->> items
     (sort-by #(- (:quantity %2) (:quantity %1)))
-    (map #(str (:quantity %) " " (:name %)))
+    (map #(str (:quantity %) " " (prop %)))
     (clojure.string/join ", ")))
 
 (defn user-item
   "UI representation of a user for the home page list"
   [user]
   (let [name (str (:name user))
-        items-summary (sumarize-items (:items user))]
+        items-summary (sumarize-items :name (:items user))]
     [:div {:key (:id user)}
       [ui/list-item
         {:primary-text name
+         :on-click #(nav/nav-to! (str "#/details/" (:id user)))
+         :secondary-text  items-summary
+         :left-avatar (r/as-element [ui/avatar (first name)])}]
+      [ui/divider]]))
+
+(defn item-list-item
+  "UI representation of a user for the home page list"
+  [user]
+  (let [name (str (:item-name user))
+        items-summary (sumarize-items :user-name (:users user))]
+    [:div {:key (:id user)}
+      [ui/list-item
+        {:primary-text name
+         :on-click #(nav/nav-to! (str "#/details/" (:id user)))
          :secondary-text  items-summary
          :left-avatar (r/as-element [ui/avatar (first name)])}]
       [ui/divider]]))
@@ -85,47 +101,99 @@
             (nav/nav-to! "#/new")
             (dispatch! [:picked-contact contact])))))))
 
+(defn settings-menu []
+  (let [by-user (-> @store/state :settings :group-by-user)]
+    [ui/list
+      [ui/subheader "Settings"]
+      [ui/list-item
+        {:primary-text "List Grouping"
+         :secondary-text (if by-user
+                          "Group By User"
+                          "Group By Item")
+         :right-toggle
+            (r/as-element [ui/toggle
+                            {:on-toggle
+                              #(dispatch!
+                                  [:settings/group-by-user (not by-user)])}])}]]))
+
+
+(defn users-filter-fn [value item]
+  (println item)
+  (let [name (:name item)
+        users (:items item)]
+    (or (str/includes? name value)
+        (some (fn [user] (str/includes? (:name user) value)) users))))
+
+(defn items-filter-fn [value item]
+  (let [name (:item-name item)
+        users (:users item)]
+    (or (str/includes? name value)
+        (some (fn [user] (str/includes? (:user-name user) value)) users))))
+
+(defn home-page [list-query list-item-fn filter-fn]
+  (let [list-filter (r/atom "")]
+    (fn []
+      (let [list-data (list-query @store/state)
+            filtered-list-data (filter (partial filter-fn @list-filter) list-data)
+            drawer-state (:drawer-open @store/state)]
+        (println "Filterd data" (first filtered-list-data))
+        [:div
+            [ui/app-bar {:title "LendALot"
+                         :iconElementLeft
+                            (nav-button "button-spin-left" ic/navigation-menu)
+                         :onLeftIconButtonTouchTap #(dispatch! [:drawer (not drawer-state)])
+                         :style {:position "fixed" :top 0 :left 0}}]
+
+            [fab {:on-click #(pick-contact)}
+              [ic/content-add {:color (:alternateTextColor theme/palette)}]]
+            [ui/drawer
+              {:docked false
+               :open drawer-state
+               :onRequestChange #(dispatch! [:drawer (not drawer-state)])}
+              [settings-menu]]
+            (if (:loading @store/state)
+              [ui/linear-progress {:mode "indeterminate"}]
+              [:div {:style {:overflow "auto"
+                             :margin-top "64px"}}
+                [ui/text-field {:full-width true
+                                :value @list-filter
+                                :on-change #(reset! list-filter (.-value (.-target %)))
+                                :hint-text "Enter a contanct name or item."
+                                :style {:padding-top "5px"
+                                        :padding-bottom "5px"}}]
+                [ic/action-search {:style {:position "absolute"
+                                           :top "78px"
+                                           :right "20px"}}]
+                [ui/list
+                  {:style {:padding "0"}}
+                  (map list-item-fn filtered-list-data)]])]))))
+
 (defn home
   "The home page."
   []
-  (let [users (store/home-page @store/state)]
+  (let []
+    (if (-> @store/state :settings :group-by-user)
+        [home-page store/home-page user-item users-filter-fn]
+        [home-page store/home-page-by-items item-list-item items-filter-fn])))
+
+(-> @store/state :settings)
+
+(defn details []
+  (let [user (store/details @store/state)]
     [:div
-      [ui/app-bar {:title "LendALot"
-                   :iconElementLeft (nav-button "button-spin-left" ic/navigation-menu)}]
-      [fab {:on-click #(pick-contact)}
-        [ic/content-add {:color (:alternateTextColor theme/palette)}]]
-      (if (:loading @store/state)
-        [ui/linear-progress {:mode "indeterminate"}]
-        [:div {:style {:overflow "auto"}}
-          [ui/list
-            {:style {:padding "0"}}
-            (map user-item users)]])]))
+      [ui/app-bar {:onLeftIconButtonTouchTap #(nav/nav-back!)
+                   :title (:name user)
+                   :iconElementLeft (nav-button "button-spin-right" ic/navigation-arrow-back)}]
+      [ui/list
+           {:style {:padding "0"
+                    :margin-left "-10px"
+                    :margin-right "-10px"}}
+           (let [name (:name user)
+                 letter (first name)]
+             [ui/list-item {:primary-text name
+                            :disabled true
+                            :left-avatar (r/as-element [ui/avatar letter])}])]]))
 
-
-
-(defn details [id]
-  (let [new-user (r/atom {:user {} :valid false})]
-    (fn []
-      [:div
-        [ui/app-bar {:onLeftIconButtonTouchTap #(nav/nav-back!)
-                     :iconElementLeft (nav-button "button-spin-right" ic/navigation-arrow-back)}]
-        [fab {:on-click #(println "save")}
-          [ic/content-save {:color (:alternateTextColor theme/palette)}]]
-        [:div
-          {:style {:padding "5px"}}
-          [ui/card
-            {:style {:padding "10px"}}
-            [ui/text-field
-              {:floating-label-text "First Name"
-               :full-width true
-               :on-change #(swap! new-user assoc-in [:first-name :user] (.-value (.-target %)))}]
-            [ui/text-field
-              {:floating-label-text "Last Name"
-               :full-width true
-               :on-change #(swap! new-user assoc-in [:last-name :user] (.-value (.-target %)))}]]
-          [:div {:style {:height "15px"}}]
-          [ui/card
-            {:style {:padding "10px"}}]]])))
 
 
 (defn text-field
@@ -229,7 +297,7 @@
                        :value "1"}]]])))
 
 (defn get-page
-  "Gets a page by name" 
+  "Gets a page by name"
   [page-name]
   (let [state store/state]
     (case page-name
