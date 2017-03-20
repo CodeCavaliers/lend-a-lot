@@ -59,15 +59,19 @@
   "User + all items related to user by user-id"
   [state id]
   (let [user (user-by-id state id)
-        items-for-user (-> state :data :user->items (get id))]
-    (assoc user :items (map (partial item-by-id state) items-for-user))))
+        items-for-user (-> state :data :user->items (get id))
+        full-items (map (partial item-by-id state) items-for-user)
+        without-0-quantity (filter #(not= (:quantity %) 0) full-items)]
+    (assoc user :items without-0-quantity)))
 
 
 (defn all-users
   "Get all users"
   [state]
   (let [users (-> state :data :users)]
-    (map (partial user-with-items-by-id state) users)))
+    (->> users
+      (map (partial user-with-items-by-id state))
+      (filter #(not= (count (:items %)) 0)))))
 
 (defn all-items
   "Get all items"
@@ -198,6 +202,9 @@
                          items    (second params)]
                       (db->data contacts items))
         :new-item (add-new-item data (first params))
+        :update-item (assoc-in data
+                               [:items-index (first params) :quantity]
+                               (second params))
         data))))
 
 

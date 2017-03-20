@@ -94,3 +94,9 @@
                 (str "UPDATE LentItems SET quantity = " (+ quantity (-> current-item :quantity js/parseInt))
                       " WHERE id = " (:id current-item) ";")))
           (update current-item :quantity + quantity))))))
+
+(defn update-item-quantity [item-id new-quantity]
+  (execute-sql!
+    (str "UPDATE LentItems SET quantity = "
+            new-quantity
+          " WHERE id=" item-id ";")))

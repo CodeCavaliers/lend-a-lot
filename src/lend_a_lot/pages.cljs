@@ -172,6 +172,32 @@
       [home-page (store/home-page-by-items @store/state) item-list-item items-filter-fn]))
 
 
+(defn update-item-quantity [item-id quantity]
+  (go (<! (db/update-item-quantity item-id quantity))
+      (dispatch! [:update-item item-id quantity])))
+
+
+(defn details-list-item [item]
+  [:div {:key (:id item)}
+    [ui/list-item {:primary-text (:name item)
+                   :secondary-text (str "Quantity: " (:quantity item))
+                   :disabled true}
+      [:div {:style {:float "right"
+                     :margin-top "-7px"}}
+        [ui/icon-button
+          {:touch true
+           :on-touch-tap #(update-item-quantity (:id item) 0)}
+          [ic/content-clear]]
+        [ui/icon-button
+          {:touch true
+           :on-touch-tap #(update-item-quantity (:id item) (-> item :quantity dec))}
+          [ic/content-remove]]
+        [ui/icon-button
+          {:touch true
+           :on-touch-tap #(update-item-quantity (:id item) (-> item :quantity inc))}
+          [ic/content-add]]]]
+    [ui/divider]])
+
 (defn details []
   (let [user (store/details @store/state)]
     [:div
@@ -186,7 +212,9 @@
                  letter (first name)]
              [ui/list-item {:primary-text name
                             :disabled true
-                            :left-avatar (r/as-element [ui/avatar letter])}])]]))
+                            :left-avatar (r/as-element [ui/avatar letter])}])]
+      [:div {:style {:padding "0"}}
+          (map details-list-item (:items user))]]))
 
 
 
