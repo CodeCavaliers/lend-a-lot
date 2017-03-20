@@ -79,7 +79,7 @@
 (defn save-new-item!
   "Stores an item based on user-id.
   If item is already associated with a user, quanity gets added.
-  If item does not exist for user, a new entry is created for item and user with quantity." 
+  If item does not exist for user, a new entry is created for item and user with quantity."
   [user-id item quantity]
   (go
     (let [current-item (first (<! (item-with-name-for-user user-id item)))

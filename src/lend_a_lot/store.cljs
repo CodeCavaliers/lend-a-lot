@@ -6,6 +6,7 @@
            :loading true
            :drawer-open false
            :settings {:group-by-user true}
+           :list-filter ""
            :data { :users #{}
                    :items #{}
                    :user->items {}

@@ -118,7 +118,6 @@
 
 
 (defn users-filter-fn [value item]
-  (println item)
   (let [name (:name item)
         users (:items item)]
     (or (str/includes? name value)
@@ -130,53 +129,48 @@
     (or (str/includes? name value)
         (some (fn [user] (str/includes? (:user-name user) value)) users))))
 
-(defn home-page [list-query list-item-fn filter-fn]
-  (let [list-filter (r/atom "")]
-    (fn []
-      (let [list-data (list-query @store/state)
-            filtered-list-data (filter (partial filter-fn @list-filter) list-data)
-            drawer-state (:drawer-open @store/state)]
-        (println "Filterd data" (first filtered-list-data))
-        [:div
-            [ui/app-bar {:title "LendALot"
-                         :iconElementLeft
-                            (nav-button "button-spin-left" ic/navigation-menu)
-                         :onLeftIconButtonTouchTap #(dispatch! [:drawer (not drawer-state)])
-                         :style {:position "fixed" :top 0 :left 0}}]
+(defn home-page [list-data list-item-fn filter-fn]
+  (let [list-filter (:list-filter @store/state)
+        filtered-list-data (filter (partial filter-fn list-filter) list-data)
+        drawer-state (:drawer-open @store/state)]
+    [:div
+        [ui/app-bar {:title "LendALot"
+                     :iconElementLeft
+                        (nav-button "button-spin-left" ic/navigation-menu)
+                     :onLeftIconButtonTouchTap #(dispatch! [:drawer (not drawer-state)])
+                     :style {:position "fixed" :top 0 :left 0}}]
 
-            [fab {:on-click #(pick-contact)}
-              [ic/content-add {:color (:alternateTextColor theme/palette)}]]
-            [ui/drawer
-              {:docked false
-               :open drawer-state
-               :onRequestChange #(dispatch! [:drawer (not drawer-state)])}
-              [settings-menu]]
-            (if (:loading @store/state)
-              [ui/linear-progress {:mode "indeterminate"}]
-              [:div {:style {:overflow "auto"
-                             :margin-top "64px"}}
-                [ui/text-field {:full-width true
-                                :value @list-filter
-                                :on-change #(reset! list-filter (.-value (.-target %)))
-                                :hint-text "Enter a contanct name or item."
-                                :style {:padding-top "5px"
-                                        :padding-bottom "5px"}}]
-                [ic/action-search {:style {:position "absolute"
-                                           :top "78px"
-                                           :right "20px"}}]
-                [ui/list
-                  {:style {:padding "0"}}
-                  (map list-item-fn filtered-list-data)]])]))))
+        [fab {:on-click #(pick-contact)}
+          [ic/content-add {:color (:alternateTextColor theme/palette)}]]
+        [ui/drawer
+          {:docked false
+           :open drawer-state
+           :onRequestChange #(dispatch! [:drawer (not drawer-state)])}
+          [settings-menu]]
+        (if (:loading @store/state)
+          [ui/linear-progress {:mode "indeterminate"}]
+          [:div {:style {:overflow "auto"
+                         :margin-top "64px"}}
+            [ui/text-field {:full-width true
+                            :value list-filter
+                            :on-change #(swap! store/state assoc :list-filter (.-value (.-target %)))
+                            :hint-text "Enter a contanct name or item."
+                            :style {:padding-top "5px"
+                                    :padding-bottom "5px"}}]
+            [ic/action-search {:style {:position "absolute"
+                                       :top "78px"
+                                       :right "20px"}}]
+            [ui/list
+              {:style {:padding "0"}}
+              (map list-item-fn filtered-list-data)]])]))
 
 (defn home
   "The home page."
   []
-  (let []
-    (if (-> @store/state :settings :group-by-user)
-        [home-page store/home-page user-item users-filter-fn]
-        [home-page store/home-page-by-items item-list-item items-filter-fn])))
+  (if (-> @store/state :settings :group-by-user)
+      [home-page (store/home-page @store/state) user-item users-filter-fn]
+      [home-page (store/home-page-by-items @store/state) item-list-item items-filter-fn]))
 
-(-> @store/state :settings)
 
 (defn details []
   (let [user (store/details @store/state)]
@@ -246,7 +240,6 @@
         {:keys [id name]} contact]
     (when-not (some nil? [id item quantity])
       (go (let [result (<! (db/save-new-item! id item quantity))]
-            (println "Result" result)
             (store/dispatch! [:new-item (assoc result :userName name)])
             (nav/nav-back!))))))
 
