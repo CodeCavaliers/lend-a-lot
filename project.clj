@@ -8,7 +8,7 @@
 
   :dependencies [[org.clojure/clojure "1.9.0-alpha14"]
                  [org.clojure/clojurescript "1.9.229"]
-                 [org.clojure/core.async "0.2.395"
+                 [org.clojure/core.async "0.3.442"
                   :exclusions [org.clojure/tools.reader]]
                  [reagent "0.6.0"
                   :exclusions [org.clojure/tools.reader cljsjs/react cljsjs/react-dom]]

@@ -1,5 +1,5 @@
 (ns lend-a-lot.db
-  "!!!Warning ugly js interop ahead!!!
+  "!!!Here be js interop dragons!!!
 
   This namespace handels interop with cordova-sqlite-plugin and
   cordova-contacts-plugin.
@@ -15,8 +15,9 @@
 
   So don't bother looking here."
 
-  (:require [clojure.core.async :as async :refer [<! >!]])
+  (:require [clojure.core.async :as async :refer [<! >! chan]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
+
 
 (def db (async/promise-chan))
 (def contacts (async/promise-chan))
@@ -33,12 +34,17 @@
   (go
     (.transaction (<! db) f)))
 
+(defn p [sql x]
+  (.log js/console sql x)
+  x)
+
 (defn execute-sql!
   ([sql] (execute-sql! sql []))
   ([sql vals]
    (let [result (async/promise-chan)]
      (go
-       (.executeSql (<! db) sql vals
+       (println sql)
+       (.executeSql (p sql (<! db)) sql vals
            #(async/put! result (map-results %))
            #(println "ERROR " %)))
      result)))
@@ -85,7 +91,10 @@
         (.executeSql tx "CREATE TABLE IF NOT EXISTS LentItems (id integer primary key autoincrement unique,
                                                                userId varchar(16),
                                                                name,
-                                                               quantity integer)"))
+                                                               quantity integer)")
+        (.executeSql tx "CREATE TABLE IF NOT EXISTS Settings (id integer primary key autoincrement unique,
+                                                              name not null unique,
+                                                              value)"))
       (fn [error] (println error))
       (fn []
         (async/put! db database)
@@ -116,3 +125,16 @@
     (str "UPDATE LentItems SET quantity = "
             new-quantity
           " WHERE id=" item-id ";")))
+
+(defn all-settings []
+  (execute-sql! "SELECT * FROM Settings;"))
+
+(defn store-setting [name value]
+  (go (let [setting-value (first (<! (execute-sql!
+                                        (str "SELECT * FROM Settings WHERE NAME='" name "';"))))]
+       (if setting-value
+          (do
+            (execute-sql! (str "UPDATE Settings SET value='" value "'"
+                               " WHERE id=" (:id setting-value))))
+          (execute-sql! (str "INSERT INTO Settings (name, value) VALUES "
+                             "( '" name "', '" value "');"))))))

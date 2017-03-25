@@ -69,7 +69,8 @@
                           "Group By Item")
          :right-toggle
             (r/as-element [ui/toggle
-                            {:on-toggle
+                            {:toggled by-user
+                             :on-toggle
                               #(dispatch!
                                   [:settings/group-by-user (not by-user)])}])}]
       [ui/subheader "Sync"]

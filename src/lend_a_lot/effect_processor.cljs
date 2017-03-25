@@ -46,6 +46,7 @@
   (swap! context assoc-in [:effect-handler-registry handler-name] handler-function)
   nil)
 
+
 (s/fdef register-effect-handler
   :args (s/cat :handler-name keyword?
                :handler-fn fn?)

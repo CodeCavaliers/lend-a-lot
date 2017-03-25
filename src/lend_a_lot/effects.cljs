@@ -49,6 +49,17 @@
                       (reduce-kv (fn [acc k v] (assoc acc k (into #{} xid v))) {}))}))
 
 
+(defn db->settings [raw-settings]
+  (let [settings-by-name (index-by :name raw-settings)
+        group-by-user-flag (= "true" (:value (get settings-by-name "group-by-user")))]
+    { :group-by-user group-by-user-flag}))
+
+
+(defn load-data! []
+  (go [:data-loaded (<! (db/all-contacts))
+                    (<! (db/all-lent-items))
+                    (<! (db/all-settings))]))
+
 (e/register-effect :init
   (fn [{db :db} _]
     {:db {:pages {:current-page :home}
@@ -62,15 +73,14 @@
                    :users-index {}
                    :items-index {}}}
 
-     :async (go (let [contacts (<! (db/all-contacts))
-                      items    (<! (db/all-lent-items))]
-                  [:data-loaded contacts items]))}))
-
+     :async (load-data!)}))
 
 (e/register-effect :data-loaded
-  (fn [{db :db} [_ contacts items]]
+  (fn [{db :db} [_ contacts items settings]]
+    (println contacts items settings)
     {:db (-> db
             (assoc :loading false)
+            (assoc :settings (db->settings settings))
             (assoc :data (db->data contacts items)))}))
 
 
@@ -78,7 +88,9 @@
 
 (e/register-effect :settings/group-by-user
   (fn [{db :db} [_ type]]
-    {:db (assoc-in db [:settings :group-by-user] type)}))
+    (println type)
+    {:db (assoc-in db [:settings :group-by-user] type)
+     :async (db/store-setting "group-by-user" (str type))}))
 
 (e/register-effect :drawer
   (fn [{db :db} [_ state]]
