@@ -34,17 +34,12 @@
   (go
     (.transaction (<! db) f)))
 
-(defn p [sql x]
-  (.log js/console sql x)
-  x)
-
 (defn execute-sql!
   ([sql] (execute-sql! sql []))
   ([sql vals]
    (let [result (async/promise-chan)]
      (go
-       (println sql)
-       (.executeSql (p sql (<! db)) sql vals
+       (.executeSql (<! db) sql vals
            #(async/put! result (map-results %))
            #(println "ERROR " %)))
      result)))
@@ -57,8 +52,15 @@
 (defn all-lent-items []
   (execute-sql! "SELECT * FROM LentItems"))
 
+(defn extract-photo [contact]
+  (let [photo-array (or (aget contact "photos") [])
+        photo (or (first photo-array) {})]
+    (or (aget photo "value") nil)))
+
 (defn map-contacts [contacts]
-  (map (fn [contact] {:id (aget contact "id") :name (aget contact "displayName")})
+  (map (fn [contact]
+        {:id (aget contact "id") :name (aget contact "displayName")
+         :photo-url (extract-photo contact)})
        contacts))
 
 (defn all-contacts []

@@ -77,7 +77,6 @@
 
 (e/register-effect :data-loaded
   (fn [{db :db} [_ contacts items settings]]
-    (println contacts items settings)
     {:db (-> db
             (assoc :loading false)
             (assoc :settings (db->settings settings))
@@ -88,7 +87,6 @@
 
 (e/register-effect :settings/group-by-user
   (fn [{db :db} [_ type]]
-    (println type)
     {:db (assoc-in db [:settings :group-by-user] type)
      :async (db/store-setting "group-by-user" (str type))}))
 
@@ -162,6 +160,7 @@
   Take a js object with id and displayName props.
   Returns a clj map with :id and :name props"
   [js-contact]
+  (.log js/console js-contact)
   {:id (str (aget js-contact "id"))
    :name (aget js-contact "displayName")})
 

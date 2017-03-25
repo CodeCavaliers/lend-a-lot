@@ -28,6 +28,44 @@
     (map #(str (:quantity %) " " (prop %)))
     (clojure.string/join ", ")))
 
+(comment
+  var stringHexNumber =
+    parseInt()
+        parseInt('mj3bPTCbIAVoNr93me1I', 36)
+            .toExponential()
+            .slice(2,-5)
+    , 10 & 0xFFFFFF
+  .toString(16).toUpperCase())
+
+
+(defn pad [string c char]
+  (let [length (.-length string)]
+    (if (>= length c)
+      string
+      (str string (str/join "" (repeat (- c length) char))))))
+
+
+
+(defn string-to-hex [string]
+  (str "#" (-> string
+              (pad 7 "X")
+              (.split " ")
+              (.join "")
+              (js/parseInt 36)
+              (.toExponential)
+              (.slice 2 -5)
+              (js/parseInt 10)
+              (bit-and 0xFFFFFF)
+              (.toString 16)
+              (.toUpperCase))))
+
+(defn avatar [user]
+  (let [photo-url (:photo-url user)]
+    (if photo-url
+      (r/as-element [ui/avatar {:src photo-url}])
+      (r/as-element [ui/avatar {:background-color (string-to-hex (:name user))}
+                        (first (:name user))]))))
+
 (defn user-item
   "UI representation of a user for the home page list"
   [user]
@@ -38,7 +76,7 @@
         {:primary-text name
          :on-click #(dispatch! [:nav-to (str "#/details/" (:id user))])
          :secondary-text  items-summary
-         :left-avatar (r/as-element [ui/avatar (first name)])}]
+         :left-avatar (avatar user)}]
       [ui/divider]]))
 
 (defn item-list-item
@@ -51,7 +89,9 @@
         {:primary-text name
          :on-click #(dispatch! [:nav-to (str "#/details-by-item/" name)])
          :secondary-text  items-summary
-         :left-avatar (r/as-element [ui/avatar (first name)])}]
+         :left-avatar (r/as-element [ui/avatar
+                                      {:background-color (string-to-hex name)}
+                                      (first name)])}]
       [ui/divider]]))
 
 
@@ -174,7 +214,7 @@
                  letter (first name)]
              [ui/list-item {:primary-text name
                             :disabled true
-                            :left-avatar (r/as-element [ui/avatar letter])}])]
+                            :left-avatar (avatar user)}])]
       [:div {:style {:padding "0"}}
           (map details-list-item (:items user))]]))
 
@@ -220,7 +260,8 @@
                  letter (first name)]
              [ui/list-item {:primary-text name
                             :disabled true
-                            :left-avatar (r/as-element [ui/avatar letter])}])]
+                            :left-avatar (r/as-element [ui/avatar
+                                                          {:background-color (string-to-hex name)} letter])}])]
       [:div {:style {:padding "0"}}
           (map item-details-list-item (:users item))]]))
 
@@ -304,7 +345,7 @@
                                :right-icon-button (r/as-element [ui/icon-button
                                                                   {:on-click #(dispatch! [:start-contact-picker])}
                                                                   [ic/editor-mode-edit]])
-                               :left-avatar (r/as-element [ui/avatar letter])}])]
+                               :left-avatar (r/as-element [ui/avatar {:background-color (string-to-hex name)} letter])}])]
             [ui/auto-complete
               {:dataSource @reactions/deduped-items
                :full-width true
