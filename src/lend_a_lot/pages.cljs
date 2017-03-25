@@ -208,16 +208,16 @@
       [lui/fab {:on-click #(dispatch! [:add-to-existing-user user])}
          [ic/content-add {:color (:alternateTextColor theme/palette)}]]
       [ui/list
-           {:style {:padding "0"
-                    :margin-left "-10px"
-                    :margin-right "-10px"}}
+           {:style {:padding "0"}}
            (let [name (:name user)
                  letter (first name)]
              [ui/list-item {:primary-text name
                             :disabled true
                             :left-avatar (avatar user)}])]
-      [:div {:style {:padding "0"}}
-          (map details-list-item (:items user))]]))
+      [:div {:style {:padding "0"
+                     :overflow "auto"}}
+        (map details-list-item (:items user))
+        [:div {:style {:height "75px"}}]]]))
 
 
 (defn item-details-list-item [user]
@@ -256,17 +256,17 @@
       [lui/fab {:on-click #(dispatch! [:add-user-to-item item])}
         [ic/content-add {:color (:alternateTextColor theme/palette)}]]
       [ui/list
-           {:style {:padding "0"
-                    :margin-left "-10px"
-                    :margin-right "-10px"}}
+           {:style {:padding "0"}}
            (let [name (:item-name item)
                  letter (first name)]
              [ui/list-item {:primary-text name
                             :disabled true
                             :left-avatar (r/as-element [ui/avatar
                                                           {:background-color (string-to-hex name)} letter])}])]
-      [:div {:style {:padding "0"}}
-          (map item-details-list-item (:users item))]]))
+      [:div {:style {:padding "0"
+                     :overflow "auto"}}
+          (map item-details-list-item (:users item))
+          [:div {:style {:height "75px"}}]]]))
 
 
 (defn text-field

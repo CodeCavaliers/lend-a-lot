@@ -38,7 +38,7 @@
    {:style {:position "fixed"
             :bottom "15px"
             :right "15px"
-            :z-index "100"}
+            :z-index "500"}
     :on-click on-click}
    icon])
 
