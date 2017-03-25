@@ -30,7 +30,7 @@
                 ;; the presence of a :figwheel configuration here
                 ;; will cause figwheel to inject the figwheel client
                 ;; into your build
-                :figwheel {:websocket-host "192.168.0.101"
+                :figwheel {:websocket-host "192.168.122.1"
                            :autoload false}
                            ;; :open-urls will pop open your application
                            ;; in the default browser once Figwheel has

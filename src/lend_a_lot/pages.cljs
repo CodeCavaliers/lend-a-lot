@@ -1,41 +1,14 @@
 (ns lend-a-lot.pages
   (:require [reagent.core :as r]
             [lend-a-lot.navigation :as nav]
-            [lend-a-lot.store :as store :refer [dispatch!]]
+            [lend-a-lot.effect-processor :refer [dispatch!]]
+            [lend-a-lot.reactions :as reactions]
             [cljs-react-material-ui.reagent :as ui]
             [cljs-react-material-ui.icons :as ic]
             [lend-a-lot.theme :as theme]
-            [lend-a-lot.db :as db]
             [clojure.string :as str]
-            [clojure.core.async :as async :refer [<!]])
-  (:require-macros [cljs.core.async.macros :refer [go]]))
+            [lend-a-lot.ui :as lui]))
 
-
-(defn button-spin-anim [anim element]
-  [ui/css-transition-group
-     {:transitionName anim
-      :transitionAppear true
-      :transitionAppearTimeout 25
-      :transitionEnter false
-      :transitionLeave false}
-    element])
-
-(defn nav-button [anim icon]
-  (r/as-element
-    [ui/icon-button
-     [button-spin-anim
-      anim
-      [icon
-        {:color (:alternateTextColor theme/palette)}]]]))
-
-(defn fab [{on-click :on-click} icon]
-  [ui/floating-action-button
-    {:style {:position "fixed"
-             :bottom "15px"
-             :right "15px"
-             :z-index "100"}
-     :on-click on-click}
-    icon])
 
 (defn sumarize-items
   "Creates a sumarized version for a list of items in format:
@@ -63,7 +36,7 @@
     [:div {:key (:id user)}
       [ui/list-item
         {:primary-text name
-         :on-click #(nav/nav-to! (str "#/details/" (:id user)))
+         :on-click #(dispatch! [:nav-to (str "#/details/" (:id user))])
          :secondary-text  items-summary
          :left-avatar (r/as-element [ui/avatar (first name)])}]
       [ui/divider]]))
@@ -76,33 +49,17 @@
     [:div {:key (:id user)}
       [ui/list-item
         {:primary-text name
-         :on-click #(nav/nav-to! (str "#/details/" (:id user)))
+         :on-click #(dispatch! [:nav-to (str "#/details-by-item/" name)])
          :secondary-text  items-summary
          :left-avatar (r/as-element [ui/avatar (first name)])}]
       [ui/divider]]))
 
-(defn create-contact
-  "JS->CLJ contact creator function.
-  Take a js object with id and displayName props.
-  Returns a clj map with :id and :name props"
-  [js-contact]
-  {:id (str (aget js-contact "id"))
-   :name (aget js-contact "displayName")})
 
-(defn pick-contact
-  "Starts the contact picker cordova plugin."
-  []
-  (go
-    (let [contacts (<! db/contacts)
-          pickContactFn (aget contacts "pickContact")]
-      (pickContactFn
-        (fn [c]
-          (let [contact (create-contact c)]
-            (nav/nav-to! "#/new")
-            (dispatch! [:picked-contact contact])))))))
+
+
 
 (defn settings-menu []
-  (let [by-user (-> @store/state :settings :group-by-user)]
+  (let [by-user (-> @reactions/settings :group-by-user)]
     [ui/list
       [ui/subheader "Settings"]
       [ui/list-item
@@ -114,7 +71,12 @@
             (r/as-element [ui/toggle
                             {:on-toggle
                               #(dispatch!
-                                  [:settings/group-by-user (not by-user)])}])}]]))
+                                  [:settings/group-by-user (not by-user)])}])}]
+      [ui/subheader "Sync"]
+      [ui/list-item
+        {:primary-text "Backup"}]
+      [ui/list-item
+        {:primary-text "Restore"}]]))
 
 
 (defn users-filter-fn [value item]
@@ -130,80 +92,79 @@
         (some (fn [user] (str/includes? (:user-name user) value)) users))))
 
 (defn home-page [list-data list-item-fn filter-fn]
-  (let [list-filter (:list-filter @store/state)
+  (let [list-filter (:list-filter @reactions/db)
         filtered-list-data (filter (partial filter-fn list-filter) list-data)
-        drawer-state (:drawer-open @store/state)]
-    [:div
-        [ui/app-bar {:title "LendALot"
-                     :iconElementLeft
-                        (nav-button "button-spin-left" ic/navigation-menu)
-                     :onLeftIconButtonTouchTap #(dispatch! [:drawer (not drawer-state)])
-                     :style {:position "fixed" :top 0 :left 0}}]
+        drawer-state (:drawer-open @reactions/db)]
+    [lui/app-wrapper
+      {:title "LendALot"
+       :action #(dispatch! [:drawer (not drawer-state)])
+       :icon-left (lui/nav-button "button-spin-left" ic/navigation-menu)}
 
-        [fab {:on-click #(pick-contact)}
-          [ic/content-add {:color (:alternateTextColor theme/palette)}]]
-        [ui/drawer
-          {:docked false
-           :open drawer-state
-           :onRequestChange #(dispatch! [:drawer (not drawer-state)])}
-          [settings-menu]]
-        (if (:loading @store/state)
-          [ui/linear-progress {:mode "indeterminate"}]
-          [:div {:style {:overflow "auto"
-                         :margin-top "64px"}}
-            [ui/text-field {:full-width true
-                            :value list-filter
-                            :on-change #(swap! store/state assoc :list-filter (.-value (.-target %)))
-                            :hint-text "Enter a contanct name or item."
-                            :style {:padding-top "5px"
-                                    :padding-bottom "5px"}}]
-            [ic/action-search {:style {:position "absolute"
-                                       :top "78px"
-                                       :right "20px"}}]
-            [ui/list
-              {:style {:padding "0"}}
-              (map list-item-fn filtered-list-data)]])]))
+      [lui/fab {:on-click #(dispatch! [:start-contact-picker])}
+        [ic/content-add {:color (:alternateTextColor theme/palette)}]]
+      [ui/drawer
+        {:docked false
+         :open drawer-state
+         :onRequestChange #(dispatch! [:drawer (not drawer-state)])}
+        [settings-menu]]
+      (if (:loading @reactions/db)
+        [ui/linear-progress {:mode "indeterminate"}]
+        [:div {:style {:overflow "auto"
+                       :margin-top "64px"}}
+          [ui/text-field {:full-width true
+                          :value list-filter
+                          :on-change #(dispatch! [:list-filter (.-value (.-target %))])
+                          :hint-text "Enter a contanct name or item."
+                          :style {:padding-top "5px"
+                                  :padding-bottom "5px"}}]
+          [ic/action-search {:style {:position "absolute"
+                                     :top "78px"
+                                     :right "20px"}}]
+          [ui/list
+            {:style {:padding "0"}}
+            (map list-item-fn filtered-list-data)]])]))
 
 (defn home
   "The home page."
   []
-  (if (-> @store/state :settings :group-by-user)
-      [home-page (store/home-page @store/state) user-item users-filter-fn]
-      [home-page (store/home-page-by-items @store/state) item-list-item items-filter-fn]))
+  (if (-> @reactions/settings :group-by-user)
+    [home-page @reactions/home-page-by-users user-item users-filter-fn]
+    [home-page @reactions/home-page-by-items item-list-item items-filter-fn]))
 
 
-(defn update-item-quantity [item-id quantity]
-  (go (<! (db/update-item-quantity item-id quantity))
-      (dispatch! [:update-item item-id quantity])))
-
-
-(defn details-list-item [item]
-  [:div {:key (:id item)}
-    [ui/list-item {:primary-text (:name item)
-                   :secondary-text (str "Quantity: " (:quantity item))
+(defn details-list-item [user]
+  [:div {:key (:id user)}
+    [ui/list-item {:primary-text (:name user)
+                   :secondary-text (str "Quantity: " (:quantity user))
                    :disabled true}
       [:div {:style {:float "right"
                      :margin-top "-7px"}}
         [ui/icon-button
           {:touch true
-           :on-touch-tap #(update-item-quantity (:id item) 0)}
+           :on-touch-tap #(dispatch! [:update-item-quantity (:id user) 0])}
           [ic/content-clear]]
         [ui/icon-button
           {:touch true
-           :on-touch-tap #(update-item-quantity (:id item) (-> item :quantity dec))}
+           :on-touch-tap
+              #(dispatch! [:update-item-quantity
+                           (:id user)
+                           (-> user :quantity dec)])}
           [ic/content-remove]]
         [ui/icon-button
           {:touch true
-           :on-touch-tap #(update-item-quantity (:id item) (-> item :quantity inc))}
+           :on-touch-tap
+              #(dispatch! [:update-item-quantity
+                           (:id user)
+                           (-> user :quantity inc)])}
           [ic/content-add]]]]
     [ui/divider]])
 
 (defn details []
-  (let [user (store/details @store/state)]
-    [:div
-      [ui/app-bar {:onLeftIconButtonTouchTap #(nav/nav-back!)
-                   :title (:name user)
-                   :iconElementLeft (nav-button "button-spin-right" ic/navigation-arrow-back)}]
+  (let [user @reactions/user-details]
+    [lui/app-wrapper
+      {:title "Edit"
+       :action #(dispatch! [:nav-back])
+       :icon-left (lui/nav-button "button-spin-right" ic/navigation-arrow-back)}
       [ui/list
            {:style {:padding "0"
                     :margin-left "-10px"
@@ -216,6 +177,51 @@
       [:div {:style {:padding "0"}}
           (map details-list-item (:items user))]]))
 
+
+(defn item-details-list-item [user]
+  [:div {:key (:gen-id user)}
+    [ui/list-item {:primary-text (:user-name user)
+                   :secondary-text (str "Quantity: " (:quantity user))
+                   :disabled true}
+      [:div {:style {:float "right"
+                     :margin-top "-7px"}}
+        [ui/icon-button
+          {:touch true
+           :on-touch-tap #(dispatch! [:update-item-quantity (:id user) 0])}
+          [ic/content-clear]]
+        [ui/icon-button
+          {:touch true
+           :on-touch-tap
+              #(dispatch! [:update-item-quantity
+                           (:id user)
+                           (-> user :quantity dec)])}
+          [ic/content-remove]]
+        [ui/icon-button
+          {:touch true
+           :on-touch-tap
+              #(dispatch! [:update-item-quantity
+                           (:id user)
+                           (-> user :quantity inc)])}
+          [ic/content-add]]]]
+    [ui/divider]])
+
+(defn details-by-item []
+  (let [item @reactions/item-details]
+    [lui/app-wrapper
+      {:title "Edit"
+       :action #(dispatch! [:nav-back])
+       :icon-left (lui/nav-button "button-spin-right" ic/navigation-arrow-back)}
+      [ui/list
+           {:style {:padding "0"
+                    :margin-left "-10px"
+                    :margin-right "-10px"}}
+           (let [name (:item-name item)
+                 letter (first name)]
+             [ui/list-item {:primary-text name
+                            :disabled true
+                            :left-avatar (r/as-element [ui/avatar letter])}])]
+      [:div {:style {:padding "0"}}
+          (map item-details-list-item (:users item))]]))
 
 
 (defn text-field
@@ -267,62 +273,56 @@
   (let [{:keys [contact item quantity]} c
         {:keys [id name]} contact]
     (when-not (some nil? [id item quantity])
-      (go (let [result (<! (db/save-new-item! id item quantity))]
-            (store/dispatch! [:new-item (assoc result :userName name)])
-            (nav/nav-back!))))))
+      (dispatch! [:save-new-item id name item quantity]))))
+
 
 
 (defn new-item []
   (let [new-thing (r/atom {})]
     (fn []
-      [:div
-        [ui/app-bar {:onLeftIconButtonTouchTap #(nav/nav-back!)
-                     :iconElementLeft
-                           (nav-button "button-spin-right" ic/navigation-arrow-back)
-                     :iconElementRight
-                           (r/as-element
-                             [ui/flat-button
-                                {:label "Save"
-                                 :on-click
-                                   #(save-new-item!
-                                      (let [contact (-> @store/state :pages :picked-contact)]
-                                        (assoc @new-thing :contact contact)))}])}]
+        [lui/app-wrapper
+          {:action #(dispatch! [:nav-back])
+           :icon-left (lui/nav-button "button-spin-right" ic/navigation-arrow-back)
+           :icon-right (r/as-element
+                         [ui/flat-button
+                            {:label "Save"
+                             :on-click
+                               #(save-new-item!
+                                  (let [contact (-> @reactions/pages :picked-contact)]
+                                    (assoc @new-thing :contact contact)))}])}
 
-        [:div {:style {:padding "10px"}}
-          [ui/list
-            {:style {:padding "0"
-                     :margin-left "-10px"
-                     :margin-right "-10px"}}
-            (let [name (-> @store/state :pages :picked-contact :name)
-                  letter (first name)]
-              [ui/list-item {:primary-text name
-                             :disabled true
-                             :right-icon-button (r/as-element [ui/icon-button
-                                                                {:on-click #(pick-contact)}
-                                                                [ic/editor-mode-edit]])
-                             :left-avatar (r/as-element [ui/avatar letter])}])]
-          [ui/auto-complete
-            {:dataSource (->> (store/all-items @store/state)
-                            (sort-by :quantity)
-                            (map :name)
-                            (distinct))
-             :full-width true
-             :floatingLabelText "Item"
-             :error-text (:item-error @new-thing)
-             :onUpdateInput #(item-update-new-thing new-thing %1 %2)}]
-          [text-field {:field :quantity
-                       :atom new-thing
-                       :label "Quantity"
-                       :type "number"
-                       :validator (partial validator "This fields should be at least 1" #(<= % 0))
-                       :value "1"}]]])))
+          [:div {:style {:padding "10px"}}
+            [ui/list
+              {:style {:padding "0"
+                       :margin-left "-10px"
+                       :margin-right "-10px"}}
+              (let [name (-> @reactions/pages :picked-contact :name)
+                    letter (first name)]
+                [ui/list-item {:primary-text name
+                               :disabled true
+                               :right-icon-button (r/as-element [ui/icon-button
+                                                                  {:on-click #(dispatch! [:start-contact-picker])}
+                                                                  [ic/editor-mode-edit]])
+                               :left-avatar (r/as-element [ui/avatar letter])}])]
+            [ui/auto-complete
+              {:dataSource @reactions/deduped-items
+               :full-width true
+               :floatingLabelText "Item"
+               :error-text (:item-error @new-thing)
+               :onUpdateInput #(item-update-new-thing new-thing %1 %2)}]
+            [text-field {:field :quantity
+                         :atom new-thing
+                         :label "Quantity"
+                         :type "number"
+                         :validator (partial validator "This fields should be at least 1" #(<= % 0))
+                         :value "1"}]]])))
 
 (defn get-page
   "Gets a page by name"
   [page-name]
-  (let [state store/state]
-    (case page-name
-      :home [home]
-      :new  [new-item]
-      :details [details]
-      [home])))
+  (case page-name
+    :home [home]
+    :new  [new-item]
+    :details [details]
+    :details-by-item [details-by-item]
+    [home]))

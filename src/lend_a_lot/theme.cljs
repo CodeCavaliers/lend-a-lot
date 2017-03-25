@@ -1,4 +1,5 @@
 (ns lend-a-lot.theme
+  "Take a wild guess..."
   (:require [cljs-react-material-ui.core :refer [get-mui-theme]]))
 
 (defn color [name]

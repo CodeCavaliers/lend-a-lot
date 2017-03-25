@@ -3,7 +3,7 @@
             [goog.events :as events]
             [reagent.core :as r]
             [goog.history.EventType :as EventType]
-            [lend-a-lot.store :refer [state dispatch!]])
+            [lend-a-lot.effect-processor :refer [dispatch!]])
   (:import goog.History))
 
 ;========= Secratary Config ==========
@@ -14,6 +14,9 @@
 
 (defroute details-path "/details/:id" [id]
   (dispatch! [:pages :details id]))
+
+(defroute details-by-item-path "/details-by-item/:id" [id]
+  (dispatch! [:pages :details-by-item id]))
 
 (defroute new-user-path "/new" []
   (dispatch! [:pages :new]))
@@ -26,15 +29,3 @@
   (let [h (History.)]
     (goog.events/listen h EventType/NAVIGATE #(secretary/dispatch! (.-token %)))
     (doto h (.setEnabled true))))
-
-(defn nav-to! [location]
-  (set! js/window.location.href location)
-  nil)
-
-(defn nav-back! []
-  (. js/window.history back))
-
-;========= App Handlers =========
-
-(defn pages []
-  (r/cursor state [:pages]))

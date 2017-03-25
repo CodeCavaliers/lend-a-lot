@@ -1,4 +1,20 @@
 (ns lend-a-lot.db
+  "!!!Warning ugly js interop ahead!!!
+
+  This namespace handels interop with cordova-sqlite-plugin and
+  cordova-contacts-plugin.
+
+  Important items are
+    db                    - a promise-chan containing the sqlite plugin instance
+    contacts              - a promise-chan containing the contacts plugin instance
+    all-contacts          - a query for all contacts using the contacts api
+    bootstrap-database    - callback that sets up this whole namespace
+                            used in core as a callback to 'deviceready' cordova event
+    save-new-item!        - saves a new items or updates the quantity of an item
+    update-item-quantity! - updates an item quantity
+
+  So don't bother looking here."
+
   (:require [clojure.core.async :as async :refer [<! >!]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
@@ -92,7 +108,7 @@
         (do
           (<! (execute-sql!
                 (str "UPDATE LentItems SET quantity = " (+ quantity (-> current-item :quantity js/parseInt))
-                      " WHERE id = " (:id current-item) ";")))
+                     " WHERE id = " (:id current-item) ";")))
           (update current-item :quantity + quantity))))))
 
 (defn update-item-quantity [item-id new-quantity]
