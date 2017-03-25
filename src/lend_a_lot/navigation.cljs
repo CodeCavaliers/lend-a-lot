@@ -18,8 +18,11 @@
 (defroute details-by-item-path "/details-by-item/:id" [id]
   (dispatch! [:pages :details-by-item id]))
 
-(defroute new-user-path "/new" []
-  (dispatch! [:pages :new]))
+(defroute new-user-path "/new" [query-params]
+  (let [{item :item} query-params]
+    (if (= item "")
+      (dispatch! [:pages :new])
+      (dispatch! [:pages :new item]))))
 
 (defroute "*" []
   (dispatch! [:pages :home]))

@@ -205,6 +205,8 @@
       {:title "Edit"
        :action #(dispatch! [:nav-back])
        :icon-left (lui/nav-button "button-spin-right" ic/navigation-arrow-back)}
+      [lui/fab {:on-click #(dispatch! [:add-to-existing-user user])}
+         [ic/content-add {:color (:alternateTextColor theme/palette)}]]
       [ui/list
            {:style {:padding "0"
                     :margin-left "-10px"
@@ -251,6 +253,8 @@
       {:title "Edit"
        :action #(dispatch! [:nav-back])
        :icon-left (lui/nav-button "button-spin-right" ic/navigation-arrow-back)}
+      [lui/fab {:on-click #(dispatch! [:add-user-to-item item])}
+        [ic/content-add {:color (:alternateTextColor theme/palette)}]]
       [ui/list
            {:style {:padding "0"
                     :margin-left "-10px"
@@ -312,14 +316,14 @@
 
 (defn save-new-item! [c]
   (let [{:keys [contact item quantity]} c
-        {:keys [id name]} contact]
+        {:keys [id name photo-url]} contact]
     (when-not (some nil? [id item quantity])
-      (dispatch! [:save-new-item id name item quantity]))))
+      (dispatch! [:save-new-item id name item quantity photo-url]))))
 
 
 
 (defn new-item []
-  (let [new-thing (r/atom {})]
+  (let [new-thing (r/atom {:item (-> @reactions/pages :param)})]
     (fn []
         [lui/app-wrapper
           {:action #(dispatch! [:nav-back])
@@ -337,17 +341,17 @@
               {:style {:padding "0"
                        :margin-left "-10px"
                        :margin-right "-10px"}}
-              (let [name (-> @reactions/pages :picked-contact :name)
-                    letter (first name)]
-                [ui/list-item {:primary-text name
+              (let [contact (-> @reactions/pages :picked-contact)]
+                [ui/list-item {:primary-text (:name contact)
                                :disabled true
                                :right-icon-button (r/as-element [ui/icon-button
                                                                   {:on-click #(dispatch! [:start-contact-picker])}
                                                                   [ic/editor-mode-edit]])
-                               :left-avatar (r/as-element [ui/avatar {:background-color (string-to-hex name)} letter])}])]
+                               :left-avatar (avatar contact)}])]
             [ui/auto-complete
               {:dataSource @reactions/deduped-items
                :full-width true
+               :searchText (-> @reactions/pages :param)
                :floatingLabelText "Item"
                :error-text (:item-error @new-thing)
                :onUpdateInput #(item-update-new-thing new-thing %1 %2)}]
@@ -357,6 +361,7 @@
                          :type "number"
                          :validator (partial validator "This fields should be at least 1" #(<= % 0))
                          :value "1"}]]])))
+
 
 (defn get-page
   "Gets a page by name"

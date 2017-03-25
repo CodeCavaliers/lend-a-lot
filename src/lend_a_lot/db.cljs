@@ -15,7 +15,8 @@
 
   So don't bother looking here."
 
-  (:require [clojure.core.async :as async :refer [<! >! chan]])
+  (:require [clojure.core.async :as async :refer [<! >! chan]]
+            [lend-a-lot.utils :as utils])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
 
@@ -52,16 +53,8 @@
 (defn all-lent-items []
   (execute-sql! "SELECT * FROM LentItems"))
 
-(defn extract-photo [contact]
-  (let [photo-array (or (aget contact "photos") [])
-        photo (or (first photo-array) {})]
-    (or (aget photo "value") nil)))
-
 (defn map-contacts [contacts]
-  (map (fn [contact]
-        {:id (aget contact "id") :name (aget contact "displayName")
-         :photo-url (extract-photo contact)})
-       contacts))
+  (map utils/create-contact contacts))
 
 (defn all-contacts []
   (let [result (async/promise-chan)]

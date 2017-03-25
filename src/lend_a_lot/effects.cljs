@@ -5,7 +5,7 @@
   (:require [lend-a-lot.effect-processor :as e]
             [clojure.core.async :refer [<! put! promise-chan]]
             [lend-a-lot.db :as db]
-            [lend-a-lot.utils :refer [index-by]])
+            [lend-a-lot.utils :as utils :refer [index-by]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
 
@@ -123,11 +123,11 @@
     (conj set x)))
 
 (defn add-new-item [data item]
-  (let [{:keys [userId id userName]} item]
+  (let [{:keys [userId id userName photo-url]} item]
     (-> data
       (update-in [:users] conj userId)
       (update-in [:items] conj id)
-      (assoc-in [:users-index userId] {:id userId :name userName})
+      (assoc-in [:users-index userId] {:id userId :name userName :photo-url photo-url})
       (assoc-in [:items-index id] (dissoc item :userName))
       (update-in [:user->items userId] set-conj id))))
 
@@ -154,32 +154,32 @@
 
 ;;====== Contacts ======
 
-
-(defn create-contact
-  "JS->CLJ contact creator function.
-  Take a js object with id and displayName props.
-  Returns a clj map with :id and :name props"
-  [js-contact]
-  (.log js/console js-contact)
-  {:id (str (aget js-contact "id"))
-   :name (aget js-contact "displayName")})
-
-(defn pick-contact []
+(defn pick-contact [item]
   (let [result (promise-chan)]
     (go (let [contacts (<! db/contacts)
               pickContactFn (aget contacts "pickContact")]
           (pickContactFn
             (fn [c]
-              (let [contact (create-contact c)]
+              (let [contact (utils/create-contact c)]
                 (put! result
                    [[:picked-contact contact]
-                    [:nav-to "#/new"]]))))))
+                    [:nav-to (str "#/new?item=" item)]]))))))
 
     result))
 
 (e/register-effect :start-contact-picker
   (fn [{db :db} _]
-    {:async-stream (pick-contact)}))
+    {:async-stream (pick-contact "")}))
+
+(e/register-effect :add-to-existing-user
+  (fn [{db :db} [_ user]]
+    {:db (assoc-in db [:pages :picked-contact] user)
+     :nav "#/new"}))
+
+(e/register-effect :add-user-to-item
+  (fn [{db :db} [_ item]]
+    (println item)
+    {:async-stream (pick-contact (:item-name item))}))
 
 (defn update-item-quantity [item-id quantity]
   (go (<! (db/update-item-quantity item-id quantity))
@@ -191,10 +191,10 @@
 
 
 (e/register-effect :save-new-item
-  (fn [_ [_ id name item quantity]]
+  (fn [_ [_ id name item quantity photo-url]]
     {:async-stream
       (go (let [result (<! (db/save-new-item! id item quantity))]
-            [[:new-item (assoc result :userName name)]
+            [[:new-item (-> result (assoc :photo-url photo-url) (assoc :userName name))]
              [:nav-back]]))}))
 
 (e/register-effect :list-filter
