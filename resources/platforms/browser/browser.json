@@ -6,6 +6,29 @@
     "config_munge": {
         "files": {}
     },
-    "installed_plugins": {},
-    "dependent_plugins": {}
+    "installed_plugins": {
+        "cordova-plugin-statusbar": {
+            "PACKAGE_NAME": "io.cordova.hellocordova"
+        }
+    },
+    "dependent_plugins": {},
+    "modules": [
+        {
+            "file": "plugins/cordova-plugin-statusbar/www/statusbar.js",
+            "id": "cordova-plugin-statusbar.statusbar",
+            "pluginId": "cordova-plugin-statusbar",
+            "clobbers": [
+                "window.StatusBar"
+            ]
+        },
+        {
+            "file": "plugins/cordova-plugin-statusbar/src/browser/StatusBarProxy.js",
+            "id": "cordova-plugin-statusbar.StatusBarProxy",
+            "pluginId": "cordova-plugin-statusbar",
+            "runs": true
+        }
+    ],
+    "plugin_metadata": {
+        "cordova-plugin-statusbar": "2.2.2"
+    }
 }

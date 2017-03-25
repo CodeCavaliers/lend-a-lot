@@ -139,16 +139,16 @@
       {:title "LendALot"
        :action #(dispatch! [:drawer (not drawer-state)])
        :icon-left (lui/nav-button "button-spin-left" ic/navigation-menu)}
-
-      [lui/fab {:on-click #(dispatch! [:start-contact-picker])}
-        [ic/content-add {:color (:alternateTextColor theme/palette)}]]
+      (when (:loaded @reactions/db)
+        [lui/fab {:on-click #(dispatch! [:start-contact-picker])}
+          [ic/content-add {:color (:alternateTextColor theme/palette)}]])
       [ui/drawer
         {:docked false
          :open drawer-state
          :onRequestChange #(dispatch! [:drawer (not drawer-state)])}
         [settings-menu]]
-      (if (:loading @reactions/db)
-        [ui/linear-progress {:mode "indeterminate"}]
+      (if-not (:loaded @reactions/db)
+        [ui/circular-progress {:innerStyle {:position "fixed" :top "50%" :left "50%" :margin-top "-20px" :margin-left "-20px"}}]
         [:div {:style {:overflow "auto"
                        :margin-top "64px"}}
           [ui/text-field {:full-width true

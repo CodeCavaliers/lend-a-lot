@@ -25,4 +25,7 @@
     </platform>
     <plugin name="cordova-plugin-contacts" spec="~2.2.1" />
     <plugin name="cordova-sqlite-storage" spec="~2.0.2" />
+    <preference name="StatusBarBackgroundColor" value="#b7372d" />
+    <preference name="StatusBarStyle" value="lightcontent" />
+
 </widget>

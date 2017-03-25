@@ -63,7 +63,7 @@
 (e/register-effect :init
   (fn [{db :db} _]
     {:db {:pages {:current-page :home}
-           :loading true
+           :loaded false
            :drawer-open false
            :settings {:group-by-user true}
            :list-filter ""
@@ -78,7 +78,7 @@
 (e/register-effect :data-loaded
   (fn [{db :db} [_ contacts items settings]]
     {:db (-> db
-            (assoc :loading false)
+            (assoc :loaded true)
             (assoc :settings (db->settings settings))
             (assoc :data (db->data contacts items)))}))
 
