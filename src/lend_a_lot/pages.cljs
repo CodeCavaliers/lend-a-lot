@@ -109,8 +109,7 @@
                           "Group By Item")
          :right-toggle
             (r/as-element [ui/toggle
-                            {:toggled by-user
-                             :on-toggle
+                            {:on-toggle
                               #(dispatch!
                                   [:settings/group-by-user (not by-user)])}])}]
       [ui/subheader "Sync"]
@@ -153,7 +152,7 @@
         [:div {:style {:overflow "auto"
                        :margin-top "64px"}}
           [ui/text-field {:full-width true
-                          :value list-filter
+                          :value (or list-filter "")
                           :on-change #(dispatch! [:list-filter (.-value (.-target %))])
                           :hint-text "Enter a contanct name or item."
                           :style {:padding-top "5px"

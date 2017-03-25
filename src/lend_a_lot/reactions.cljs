@@ -12,14 +12,14 @@
   "Get a user by id"
   [state id]
   (let [users (-> state :data :users-index)
-        user (users id)]
+        user (get users id)]
     (assoc user :id id)))
 
 (defn item-by-id
   "Get an item by id"
   [state id]
   (let [items (-> state :data :items-index)
-        item  (items id)]
+        item  (get items id)]
     (assoc item :id id)))
 
 (defn user-with-items-by-id

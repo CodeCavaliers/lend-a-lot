@@ -14,7 +14,7 @@
                  :iconElementRight icon-right
                  :style {:position "fixed" :top 0 :left 0}}]
     [:div {:style {:margin-top "64px"}}
-      children]])
+      (map-indexed #(with-meta %2  {:key %1}) children)]])
 
 (defn flag-settings-item [setting]
   [ui/list-item {:key (:title setting)
