@@ -39,7 +39,7 @@
 
 
 (defn pad [string c char]
-  (let [length (.-length string)]
+  (let [length (count string)]
     (if (>= length c)
       string
       (str string (str/join "" (repeat (- c length) char))))))
@@ -220,6 +220,19 @@
         [:div {:style {:height "75px"}}]]]))
 
 
+(defn item-details-update-handler
+  "When there are no more users associated with an item nav back to main view.
+  Because the item gets filtered up and should not longer tehnically exist.
+
+  The function checks if the last users' items quantity is set to zero
+  if true then it dispatches a nav-back action."
+  [item-id quantity]
+  (dispatch! [:update-item-quantity item-id quantity])
+  (when (and (= quantity 0)
+             (= 1 (count (:users @reactions/item-details))))
+    (dispatch! [:nav-back])))
+
+
 (defn item-details-list-item [user]
   [:div {:key (:gen-id user)}
     [ui/list-item {:primary-text (:user-name user)
@@ -229,21 +242,21 @@
                      :margin-top "-7px"}}
         [ui/icon-button
           {:touch true
-           :on-touch-tap #(dispatch! [:update-item-quantity (:id user) 0])}
+           :on-touch-tap #(item-details-update-handler (:id user) 0)}
           [ic/content-clear]]
         [ui/icon-button
           {:touch true
            :on-touch-tap
-              #(dispatch! [:update-item-quantity
+              #(item-details-update-handler
                            (:id user)
-                           (-> user :quantity dec)])}
+                           (-> user :quantity dec))}
           [ic/content-remove]]
         [ui/icon-button
           {:touch true
            :on-touch-tap
-              #(dispatch! [:update-item-quantity
+              #(item-details-update-handler
                            (:id user)
-                           (-> user :quantity inc)])}
+                           (-> user :quantity inc))}
           [ic/content-add]]]]
     [ui/divider]])
 
@@ -267,6 +280,8 @@
                      :overflow "auto"}}
           (map item-details-list-item (:users item))
           [:div {:style {:height "75px"}}]]]))
+
+
 
 
 (defn text-field

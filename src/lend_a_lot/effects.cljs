@@ -178,7 +178,6 @@
 
 (e/register-effect :add-user-to-item
   (fn [{db :db} [_ item]]
-    (println item)
     {:async-stream (pick-contact (:item-name item))}))
 
 (defn update-item-quantity [item-id quantity]
