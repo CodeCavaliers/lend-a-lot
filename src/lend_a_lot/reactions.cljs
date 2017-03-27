@@ -115,5 +115,3 @@
 (def user-details (reaction (details @db)))
 (def item-details (reaction (item-details-query @home-page-by-items @pages)))
 (def deduped-items (reaction (deduped-items-query @db)))
-
-(do @user-details)

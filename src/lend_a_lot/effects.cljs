@@ -5,7 +5,8 @@
   (:require [lend-a-lot.effect-processor :as e]
             [clojure.core.async :refer [<! put! promise-chan]]
             [lend-a-lot.db :as db]
-            [lend-a-lot.utils :as utils :refer [index-by]])
+            [lend-a-lot.utils :as utils :refer [index-by]]
+            [clojure.spec :as s])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
 
@@ -13,13 +14,26 @@
   (fn [ctx effect-result]
     (swap! ctx assoc :db effect-result)))
 
-(e/register-effect-handler :nav
-  (fn [ctx effect-result]
-    (set! js/window.location.href effect-result)))
+(s/def :nav/to
+  (s/cat :action #{:to}
+         :location string?))
 
-(e/register-effect-handler :nav-back
-  (fn [_ _]
-    (. js/window.history back)))
+(s/def :nav/back
+  (s/cat :action #{:back}))
+
+(s/def :nav/action
+  (s/or :go-to :nav/to
+        :go-back :nav/back))
+
+(e/register-effect-handler :nav
+    (fn [ctx effect]
+      (let [e (s/conform :nav/action effect)]
+        (if (= e ::s/invalid)
+          (throw (js/Error. (s/explain-str :nav/action effect)))
+          (case (first e)
+                :go-to (set! js/window.location.href (:location (second e)))
+                :go-back  (. js/window.history back))))))
+
 
 (e/register-effect-handler :async
   (fn [ctx effect-result]
@@ -35,10 +49,11 @@
 ;; ===== Initialziation ======
 
 (def xid (map :id))
+(def xuserId (map :userId))
 
 (defn db->data [contacts items]
   (let [item-ids (into #{} xid items)
-        user-ids (into #{} (map :userId) items)
+        user-ids (into #{} xuserId items)
         contacts (filter (fn [c] (user-ids (str (:id c)))) contacts)]
     {:users (into #{} xid contacts)
      :items item-ids
@@ -52,28 +67,25 @@
 (defn db->settings [raw-settings]
   (let [settings-by-name (index-by :name raw-settings)
         group-by-user-flag (= "true" (:value (get settings-by-name "group-by-user")))]
-    { :group-by-user group-by-user-flag}))
+    {:group-by-user group-by-user-flag}))
 
-
-(defn load-data! []
-  (go [:data-loaded (<! (db/all-contacts))
-                    (<! (db/all-lent-items))
-                    (<! (db/all-settings))]))
 
 (e/register-effect :init
   (fn [{db :db} _]
     {:db {:pages {:current-page :home}
-           :loaded false
-           :drawer-open false
-           :settings {:group-by-user true}
-           :list-filter ""
-           :data { :users #{}
-                   :items #{}
-                   :user->items {}
-                   :users-index {}
-                   :items-index {}}}
+          :loaded false
+          :drawer-open false
+          :settings {:group-by-user true}
+          :list-filter ""
+          :data { :users #{}
+                  :items #{}
+                  :user->items {}
+                  :users-index {}
+                  :items-index {}}}
 
-     :async (load-data!)}))
+     :async (go [:data-loaded (<! (db/all-contacts))
+                              (<! (db/all-lent-items))
+                              (<! (db/all-settings))])}))
 
 (e/register-effect :data-loaded
   (fn [{db :db} [_ contacts items settings]]
@@ -145,11 +157,11 @@
 
 (e/register-effect :nav-to
   (fn [_ [_ location]]
-    {:nav location}))
+    {:nav [:to location]}))
 
 (e/register-effect :nav-back
   (fn [_ _]
-    {:nav-back nil}))
+    {:nav [:back]}))
 
 
 ;;====== Contacts ======
@@ -174,7 +186,7 @@
 (e/register-effect :add-to-existing-user
   (fn [{db :db} [_ user]]
     {:db (assoc-in db [:pages :picked-contact] user)
-     :nav "#/new"}))
+     :nav [:to "#/new"]}))
 
 (e/register-effect :add-user-to-item
   (fn [{db :db} [_ item]]
